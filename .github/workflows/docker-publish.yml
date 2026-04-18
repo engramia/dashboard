@@ -29,18 +29,11 @@ jobs:
       - name: Install runtime deps only
         run: npm ci --omit=dev
 
-      - name: Regenerate + verify DEPENDENCY_LICENSES.md
-        # Fails with exit 2 if any HIGH-risk (AGPL/GPL-3/SSPL) license
-        # slipped in — image publish is blocked until resolved.
-        run: node scripts/audit-licenses.mjs --fail-on=high
-
-      - name: Fail if license audit drifted
-        run: |
-          if ! git diff --quiet docs/legal/DEPENDENCY_LICENSES.md; then
-            echo "::error::DEPENDENCY_LICENSES.md is stale — regenerate and commit."
-            git diff docs/legal/DEPENDENCY_LICENSES.md
-            exit 1
-          fi
+      - name: Check DEPENDENCY_LICENSES.md is up to date
+        # --check normalizes the date line before comparing, so daily re-runs
+        # don't flag themselves as drift. Also fails on any HIGH-risk
+        # (AGPL/GPL-3/SSPL) license that slipped into the runtime closure.
+        run: node scripts/audit-licenses.mjs --check --fail-on=high
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
