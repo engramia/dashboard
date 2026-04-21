@@ -108,6 +108,16 @@ function classify(licenseStr) {
   return "UNKNOWN";
 }
 
+// Platform-suffix pattern on package names — e.g. `@img/sharp-linux-x64`,
+// `@img/sharp-libvips-linuxmusl-arm64`, `@next/swc-win32-x64-msvc`.
+// Collapsed to `<base>-<platform>` so regeneration on any host OS / libc
+// variant produces the same inventory file (see roadmap hotfix).
+const PLATFORM_SUFFIX_RE = /-(linux|linuxmusl|darwin|win32|freebsd|android|sunos|netbsd|openbsd)-(x64|arm64|arm|ia32|ppc64|s390x|mips|mipsel|riscv64)(-(gnu|musl|msvc|eabi|eabihf))?$/;
+
+function canonicalizePackageName(name) {
+  return PLATFORM_SUFFIX_RE.test(name) ? name.replace(PLATFORM_SUFFIX_RE, "-<platform>") : name;
+}
+
 function runLicenseChecker() {
   // Hardcoded argv — no user input, so execSync is safe here and
   // avoids the execFileSync shell-argument deprecation on Windows.
@@ -127,16 +137,34 @@ function runLicenseChecker() {
     process.exit(3);
   }
   const data = JSON.parse(raw);
-  const pkgs = [];
+  // Collapse platform-specific variants into a single canonical entry.
+  // Only entries whose name actually contains a platform suffix are
+  // collapsed — versionied duplicates of the same package (e.g. two
+  // `react-is` majors in the same tree) MUST be preserved as separate
+  // rows. If several platform builds resolve to the same canonical name
+  // (e.g. `@next/swc-linux-x64-gnu` + `@next/swc-linux-x64-musl` on a
+  // multi-libc install), keep the highest-risk one.
+  const canonical = new Map();
+  const rest = [];
   for (const key of Object.keys(data)) {
     const match = key.match(/^(.+)@([^@]+)$/);
-    const name = match ? match[1] : key;
+    const rawName = match ? match[1] : key;
     const version = match ? match[2] : "";
-    if (name === SELF_NAME) continue;
+    if (rawName === SELF_NAME) continue;
     const licenses = data[key].licenses;
     const licenseStr = Array.isArray(licenses) ? licenses.join(" AND ") : (licenses ?? "UNKNOWN");
-    pkgs.push({ name, version, license: licenseStr, risk: classify(licenseStr) });
+    const name = canonicalizePackageName(rawName);
+    const entry = { name, version, license: licenseStr, risk: classify(licenseStr) };
+    if (name === rawName) {
+      rest.push(entry);
+      continue;
+    }
+    const existing = canonical.get(name);
+    if (!existing || ORDER.indexOf(entry.risk) < ORDER.indexOf(existing.risk)) {
+      canonical.set(name, entry);
+    }
   }
+  const pkgs = [...rest, ...canonical.values()];
   pkgs.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
   return pkgs;
 }
