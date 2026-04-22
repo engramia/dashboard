@@ -10,12 +10,12 @@ Python runtime dependencies (Core library + API) are audited separately in the C
 
 | | Count |
 |---|---|
-| npm packages (runtime transitive closure) | 75 |
+| npm packages (runtime transitive closure) | 76 |
 | 🔴 HIGH — must resolve before release | 0 |
 | 🟡 MEDIUM — review required | 1 |
 | 🟠 LOW — safe, note only | 0 |
 | ⚠️ UNKNOWN — verify manually | 0 |
-| ✅ OK | 74 |
+| ✅ OK | 75 |
 
 **Result: no blocking issues. All flagged packages are safe for commercial distribution under BUSL 1.1 (see notes below).**
 
@@ -23,7 +23,7 @@ Python runtime dependencies (Core library + API) are audited separately in the C
 
 | Risk | Package | Version | License | Assessment |
 |---|---|---|---|---|
-| 🟡 MEDIUM | @img/sharp-<platform> | 0.34.5 | Apache-2.0 AND LGPL-3.0-or-later | LGPL — applied to a dynamically-linked native library. Node/npm runtime link model does not propagate copyleft to application code. Commercial use is safe. |
+| 🟡 MEDIUM | @img/sharp-libvips-<platform> | 1.2.4 | LGPL-3.0-or-later | LGPL — applied to a dynamically-linked native library. Node/npm runtime link model does not propagate copyleft to application code. Commercial use is safe. |
 
 ## Full list
 
@@ -32,7 +32,8 @@ Python runtime dependencies (Core library + API) are audited separately in the C
 | @auth/core | 0.41.0 | ISC | ✅ |
 | @babel/runtime | 7.29.2 | MIT | ✅ |
 | @img/colour | 1.1.0 | MIT | ✅ |
-| @img/sharp-<platform> | 0.34.5 | Apache-2.0 AND LGPL-3.0-or-later | 🟡 |
+| @img/sharp-<platform> | 0.34.5 | Apache-2.0 | ✅ |
+| @img/sharp-libvips-<platform> | 1.2.4 | LGPL-3.0-or-later | 🟡 |
 | @next/env | 15.5.15 | MIT | ✅ |
 | @next/swc-<platform> | 15.5.15 | MIT | ✅ |
 | @panva/hkdf | 1.2.1 | MIT | ✅ |
