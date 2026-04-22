@@ -221,7 +221,6 @@ Defined in `.env.example`. Required in production:
 | `NEXTAUTH_SECRET` | Session cookie signing key (`openssl rand -hex 32`) |
 | `NEXT_PUBLIC_API_URL` | Core API base URL |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
-| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `NEXT_PUBLIC_STRIPE_PRO_URL` / `NEXT_PUBLIC_STRIPE_TEAM_URL` | Stripe Checkout links on `/setup` |
 | `DASHBOARD_URL` / `DASHBOARD_API_URL` / `DASHBOARD_API_KEY` | E2E tests (Playwright) |
 

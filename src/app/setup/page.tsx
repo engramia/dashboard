@@ -46,20 +46,50 @@ export default function SetupPage() {
   const [apiKey, setApiKey] = useState("")
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    const key = sessionStorage.getItem("engramia_new_api_key") ?? ""
-    if (key) setApiKey(key)
-  }, [])
-
   const handlePlanSelect = (plan: typeof PLANS[0]) => {
     if (plan.stripeUrl) {
       const email = encodeURIComponent(session?.user?.email ?? "")
-      const tenant = encodeURIComponent((session as any)?.tenantId ?? "")
+      const tenant = encodeURIComponent((session as { tenantId?: string })?.tenantId ?? "")
       window.location.href = `${plan.stripeUrl}?prefilled_email=${email}&client_reference_id=${tenant}`
     } else {
       setStep(3)
     }
   }
+
+  useEffect(() => {
+    const key = sessionStorage.getItem("engramia_new_api_key") ?? ""
+    if (key) setApiKey(key)
+
+    // Honour ?plan=X chosen on the marketing site: skip the welcome step and
+    // either jump to a Stripe checkout (Pro/Team) or land on the API key step
+    // (Sandbox). The sessionStorage entry is one-shot to avoid re-triggering
+    // on every visit.
+    const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
+    if (!pendingPlan) return
+    sessionStorage.removeItem("engramia_pending_plan")
+
+    const target = PLANS.find(p => p.id === pendingPlan)
+    if (!target) return
+    if (target.stripeUrl) {
+      // Wait until session is hydrated so prefilled_email/client_reference_id are populated.
+      setStep(2)
+      // handlePlanSelect runs in a follow-up effect once session is available.
+      sessionStorage.setItem("engramia_pending_redirect_plan", target.id)
+    } else {
+      setStep(3)
+    }
+  }, [])
+
+  // Trigger the Stripe redirect once the session is loaded — needed for
+  // prefilled_email and client_reference_id to be present in the URL.
+  useEffect(() => {
+    const pendingRedirectPlan = sessionStorage.getItem("engramia_pending_redirect_plan")
+    if (!pendingRedirectPlan || !session?.user?.email) return
+    sessionStorage.removeItem("engramia_pending_redirect_plan")
+    const target = PLANS.find(p => p.id === pendingRedirectPlan)
+    if (target) handlePlanSelect(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.email])
 
   const copy = () => {
     navigator.clipboard.writeText(apiKey)

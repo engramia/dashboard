@@ -1,18 +1,37 @@
 "use client"
-import { useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 const TERMS_URL = process.env.NEXT_PUBLIC_LEGAL_TERMS_URL ?? "https://engramia.dev/legal/terms"
 const PRIVACY_URL = process.env.NEXT_PUBLIC_LEGAL_PRIVACY_URL ?? "https://engramia.dev/legal/privacy"
 
-export default function RegisterPage() {
+const VALID_PLANS = new Set(["sandbox", "pro", "team"])
+
+type RegisterState =
+  | { stage: "form" }
+  | { stage: "pending"; email: string; deliveryFailed: boolean; resending: boolean; resendDone: boolean }
+
+function RegisterInner() {
+  const searchParams = useSearchParams()
+
+  // Persist ?plan=X into sessionStorage so it survives the verification round-trip
+  // (email link → /verify → /login) and is picked up by /setup once the user signs in.
+  useEffect(() => {
+    const plan = searchParams.get("plan")
+    if (plan && VALID_PLANS.has(plan)) {
+      sessionStorage.setItem("engramia_pending_plan", plan)
+    }
+  }, [searchParams])
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [state, setState] = useState<RegisterState>({ stage: "form" })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,15 +47,77 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.detail ?? "Registration failed"); setLoading(false); return }
-      // Auto sign-in after registration
-      await signIn("credentials", { email, password, redirect: false })
-      // Store API key for setup wizard
+      // The API key is stored now so it's available in /setup after verification.
       sessionStorage.setItem("engramia_new_api_key", data.api_key ?? "")
-      window.location.href = "/setup"
+      setState({
+        stage: "pending",
+        email,
+        deliveryFailed: data.delivery_status !== "sent",
+        resending: false,
+        resendDone: false,
+      })
+      setLoading(false)
     } catch {
       setError("Network error — please try again")
       setLoading(false)
     }
+  }
+
+  const handleResend = async () => {
+    if (state.stage !== "pending") return
+    setState({ ...state, resending: true, resendDone: false })
+    try {
+      await fetch(`${BACKEND_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: state.email }),
+      })
+      setState({ ...state, resending: false, resendDone: true })
+    } catch {
+      setState({ ...state, resending: false, resendDone: false })
+    }
+  }
+
+  if (state.stage === "pending") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <div className="w-full max-w-md p-8 bg-gray-900 rounded-2xl border border-gray-800 shadow-xl">
+          <div className="mb-6 text-center">
+            <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-lg font-bold text-white mb-3">
+              ✉
+            </div>
+            <h1 className="text-2xl font-bold text-white">Check your email</h1>
+            <p className="text-gray-400 mt-2">
+              We sent a verification link to <span className="text-white font-medium">{state.email}</span>. Click it to finish creating your account.
+            </p>
+          </div>
+
+          {state.deliveryFailed && (
+            <div className="mb-4 p-3 rounded-lg bg-yellow-900/30 border border-yellow-800 text-yellow-200 text-sm">
+              We couldn&apos;t deliver the verification email right now. Check your spam folder, or request a new link below.
+            </div>
+          )}
+
+          <div className="space-y-3 text-sm text-gray-400">
+            <p>The link expires in 24 hours. Didn&apos;t get it?</p>
+            <button
+              onClick={handleResend}
+              disabled={state.resending || state.resendDone}
+              className="w-full py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-white rounded-lg font-medium transition border border-gray-700"
+            >
+              {state.resending ? "Sending…" : state.resendDone ? "Sent — check your inbox" : "Resend verification email"}
+            </button>
+          </div>
+
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Already verified?{" "}
+            <Link href="/login" className="text-accent hover:text-accent/80">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -49,17 +130,6 @@ export default function RegisterPage() {
           <h1 className="text-2xl font-bold text-white">Create your account</h1>
           <p className="text-gray-400 mt-1">Start for free, no credit card required</p>
         </div>
-
-        {/* GitHub */}
-        <button
-          onClick={() => signIn("github", { callbackUrl: "/setup" })}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg font-medium transition mb-3 border border-gray-700"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-          </svg>
-          Continue with GitHub
-        </button>
 
         {/* Google */}
         <button
@@ -117,5 +187,13 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterInner />
+    </Suspense>
   )
 }

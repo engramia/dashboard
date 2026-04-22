@@ -1,7 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
-import GitHub from "next-auth/providers/github"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
@@ -57,10 +56,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    }),
   ],
   callbacks: {
     async jwt({ token, user, account }) {
@@ -72,10 +67,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.refreshToken = (user as { refreshToken?: string }).refreshToken
       }
       // OAuth providers — exchange with backend
-      if (
-        (account?.provider === "google" || account?.provider === "github") &&
-        account.id_token
-      ) {
+      if (account?.provider === "google" && account.id_token) {
         try {
           const res = await fetch(`${BACKEND_URL}/auth/oauth`, {
             method: "POST",
@@ -83,28 +75,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             body: JSON.stringify({
               provider: account.provider,
               provider_token: account.id_token,
-              email: token.email,
-              name: token.name,
-            }),
-          })
-          if (res.ok) {
-            const data = await res.json()
-            token.userId = data.user_id
-            token.tenantId = data.tenant_id
-            token.accessToken = data.access_token
-            token.apiKey = data.api_key
-          }
-        } catch {}
-      }
-      // GitHub uses access_token instead of id_token
-      if (account?.provider === "github" && account.access_token && !account.id_token) {
-        try {
-          const res = await fetch(`${BACKEND_URL}/auth/oauth`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              provider: "github",
-              provider_token: account.access_token,
               email: token.email,
               name: token.name,
             }),
