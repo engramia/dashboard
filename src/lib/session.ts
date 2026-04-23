@@ -3,8 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useMemo, useCallback } from "react";
 import { EngramiaClient } from "./api";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { getBackendUrl } from "./backend-url";
 
 /**
  * Returns an EngramiaClient bound to the authenticated session's access token,
@@ -16,7 +15,7 @@ export function useApiClient(): EngramiaClient | null {
   const token = session?.accessToken;
   return useMemo(() => {
     if (!token) return null;
-    return new EngramiaClient(API_URL, token);
+    return new EngramiaClient(getBackendUrl(), token);
   }, [token]);
 }
 

@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import { getBackendUrl } from "@/lib/backend-url"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://engramia.dev/docs"
 
 // NEXT_PUBLIC_* env values are inlined at build time, so they cannot be
@@ -183,7 +183,7 @@ from engramia import EngramiaClient
 
 client = EngramiaClient(
     api_key="${apiKey || "YOUR_API_KEY"}",
-    base_url="${API_URL}"
+    base_url="${getBackendUrl()}"
 )
 
 # Store what worked
