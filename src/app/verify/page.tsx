@@ -2,8 +2,7 @@
 import { useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+import { getBackendUrl } from "@/lib/backend-url"
 
 type Status = "loading" | "success" | "already-verified" | "expired" | "consumed" | "invalid" | "error"
 
@@ -22,7 +21,7 @@ function VerifyInner() {
 
     const run = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/auth/verify`, {
+        const res = await fetch(`${getBackendUrl()}/auth/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),

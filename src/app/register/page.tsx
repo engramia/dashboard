@@ -3,8 +3,7 @@ import { Suspense, useEffect, useState } from "react"
 import { signIn } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+import { getBackendUrl } from "@/lib/backend-url"
 const TERMS_URL = process.env.NEXT_PUBLIC_LEGAL_TERMS_URL ?? "https://engramia.dev/legal/terms"
 const PRIVACY_URL = process.env.NEXT_PUBLIC_LEGAL_PRIVACY_URL ?? "https://engramia.dev/legal/privacy"
 
@@ -40,7 +39,7 @@ function RegisterInner() {
     if (password !== confirm) { setError("Passwords do not match"); return }
     setLoading(true)
     try {
-      const res = await fetch(`${BACKEND_URL}/auth/register`, {
+      const res = await fetch(`${getBackendUrl()}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -67,7 +66,7 @@ function RegisterInner() {
     if (state.stage !== "pending") return
     setState({ ...state, resending: true, resendDone: false })
     try {
-      await fetch(`${BACKEND_URL}/auth/resend-verification`, {
+      await fetch(`${getBackendUrl()}/auth/resend-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: state.email }),

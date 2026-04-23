@@ -3,8 +3,7 @@ import { signIn } from "next-auth/react"
 import { Suspense, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+import { getBackendUrl } from "@/lib/backend-url"
 
 function LoginInner() {
   const searchParams = useSearchParams()
@@ -33,7 +32,7 @@ function LoginInner() {
     // Probe Core directly first so we can distinguish 403 email_not_verified from
     // the generic "invalid credentials" that NextAuth's Credentials provider returns.
     try {
-      const probe = await fetch(`${BACKEND_URL}/auth/login`, {
+      const probe = await fetch(`${getBackendUrl()}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -78,7 +77,7 @@ function LoginInner() {
   const handleResend = async () => {
     setResending(true)
     try {
-      await fetch(`${BACKEND_URL}/auth/resend-verification`, {
+      await fetch(`${getBackendUrl()}/auth/resend-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
