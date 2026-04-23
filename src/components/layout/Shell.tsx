@@ -2,21 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { useIsAuthenticated } from "@/lib/session";
+import { useSession } from "next-auth/react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function Shell({ children }: { children: ReactNode }) {
-  const isAuthenticated = useIsAuthenticated();
+  const { status } = useSession();
   const router = useRouter();
 
+  // status is one of "loading" | "authenticated" | "unauthenticated".
+  // Only redirect when the session has been resolved AND is absent —
+  // redirecting during "loading" would race the cookie hydration that
+  // follows signIn() and bounce the user back to /login even though
+  // they just authenticated.
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (status === "unauthenticated") {
       router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [status, router]);
 
-  if (!isAuthenticated) return null;
+  if (status !== "authenticated") return null;
 
   return (
     <div className="flex h-screen overflow-hidden">
