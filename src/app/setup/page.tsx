@@ -6,6 +6,15 @@ import { useRouter } from "next/navigation"
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://engramia.dev/docs"
 
+// NEXT_PUBLIC_* env values are inlined at build time, so they cannot be
+// patched per-environment after the image is built. The fallbacks point to
+// the staging Stripe test-mode payment links so a freshly-built image is
+// usable on staging without dedicated build-args. Production builds should
+// set NEXT_PUBLIC_STRIPE_PRO_URL / NEXT_PUBLIC_STRIPE_TEAM_URL via Docker
+// build args before publishing the prod image.
+const STAGING_STRIPE_PRO_URL = "https://buy.stripe.com/test_dRm28rf9S2secD50O5enS00"
+const STAGING_STRIPE_TEAM_URL = "https://buy.stripe.com/test_00w3cv1j29UG46zdARenS03"
+
 const PLANS = [
   {
     id: "sandbox",
@@ -25,7 +34,7 @@ const PLANS = [
     features: ["5 projects", "500k patterns", "Priority support", "Eval analytics"],
     cta: "Start Pro Trial",
     highlight: true,
-    stripeUrl: process.env.NEXT_PUBLIC_STRIPE_PRO_URL ?? null,
+    stripeUrl: process.env.NEXT_PUBLIC_STRIPE_PRO_URL ?? STAGING_STRIPE_PRO_URL,
   },
   {
     id: "team",
@@ -35,7 +44,7 @@ const PLANS = [
     features: ["Unlimited projects", "5M patterns", "RBAC", "SSO", "Dedicated support"],
     cta: "Start Team Trial",
     highlight: false,
-    stripeUrl: process.env.NEXT_PUBLIC_STRIPE_TEAM_URL ?? null,
+    stripeUrl: process.env.NEXT_PUBLIC_STRIPE_TEAM_URL ?? STAGING_STRIPE_TEAM_URL,
   },
 ]
 
