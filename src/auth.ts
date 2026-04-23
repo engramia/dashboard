@@ -112,4 +112,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
+  // Staging and prod run behind Caddy, which terminates TLS and forwards
+  // the external hostname via Host/X-Forwarded-Host. Auth.js v5 rejects
+  // those by default (UntrustedHost) unless we explicitly opt in.
+  trustHost: true,
 })
