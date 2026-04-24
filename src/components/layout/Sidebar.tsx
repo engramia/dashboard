@@ -11,6 +11,7 @@ import {
   Shield,
   Cog,
   ScrollText,
+  CreditCard,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useRole } from "@/lib/session";
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { label: "Governance", href: "/governance", icon: Shield, perm: "governance:read" },
   { label: "Jobs", href: "/jobs", icon: Cog, perm: "jobs:list" },
   { label: "Audit", href: "/audit", icon: ScrollText, perm: "governance:admin" },
+  { label: "Billing", href: "/billing", icon: CreditCard, perm: "billing:read" },
 ];
 
 export function Sidebar() {

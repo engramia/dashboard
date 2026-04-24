@@ -243,6 +243,26 @@ export interface DeletePatternResponse {
   pattern_key: string;
 }
 
+// ── Billing ──
+export interface BillingStatus {
+  plan_tier: "sandbox" | "pro" | "team" | "enterprise";
+  status: string;
+  billing_interval: "month" | "year";
+  eval_runs_used: number;
+  eval_runs_limit: number | null;
+  patterns_used: number;
+  patterns_limit: number | null;
+  projects_used: number;
+  projects_limit: number | null;
+  period_end: string | null;
+  overage_enabled: boolean;
+  overage_budget_cap_cents: number | null;
+}
+
+export interface BillingPortalResponse {
+  portal_url: string;
+}
+
 // ── Audit ──
 export interface AuditEvent {
   timestamp: string;

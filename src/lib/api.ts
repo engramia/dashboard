@@ -22,6 +22,8 @@ import type {
   ClassifyPatternResponse,
   DeletePatternResponse,
   AuditResponse,
+  BillingStatus,
+  BillingPortalResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -179,6 +181,18 @@ export class EngramiaClient {
     return fetch(`${this.baseUrl}/v1/governance/export${params}`, {
       headers: { Authorization: `Bearer ${this.token}` },
     });
+  }
+
+  // Billing
+  getBillingStatus() {
+    return this.request<BillingStatus>("GET", "/v1/billing/status");
+  }
+  createBillingPortal(returnUrl: string) {
+    const q = new URLSearchParams({ return_url: returnUrl });
+    return this.request<BillingPortalResponse>(
+      "GET",
+      `/v1/billing/portal?${q.toString()}`,
+    );
   }
 
   // Audit

@@ -14,6 +14,7 @@ const ADMIN = [
   "patterns:delete", "import", "export",
   "keys:create", "keys:list", "keys:revoke", "keys:rotate",
   "governance:read", "governance:write", "governance:admin", "governance:delete",
+  "billing:read", "billing:manage",
 ];
 
 const ROLE_PERMISSIONS: Record<string, Set<string>> = {
