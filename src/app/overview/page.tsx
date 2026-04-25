@@ -8,12 +8,37 @@ import { ROIScoreChart } from "@/components/charts/ROIScoreChart";
 import { RecallBreakdown } from "@/components/charts/RecallBreakdown";
 import { useMetrics } from "@/lib/hooks/useMetrics";
 import { useHealth } from "@/lib/hooks/useHealth";
+import { useBasicHealth } from "@/lib/hooks/useBasicHealth";
 import { useRollup, useEvents } from "@/lib/hooks/useAnalytics";
 import { TrendingUp } from "lucide-react";
 
+const HEALTH_CHECK_META: Record<
+  string,
+  { label: string; describe: (storageType?: string) => string }
+> = {
+  storage: {
+    label: "Storage",
+    describe: (storageType) =>
+      storageType === "postgres"
+        ? "PostgreSQL · SELECT 1"
+        : storageType === "json"
+          ? "JSON file · key listing"
+          : "Connectivity probe",
+  },
+  llm: { label: "LLM", describe: () => "Test completion call" },
+  embedding: { label: "Embedding", describe: () => "Test embedding call" },
+  stripe: {
+    label: "Stripe",
+    describe: () => "api.stripe.com reachability",
+  },
+};
+
+const HIDDEN_CHECKS = new Set(["redis", "migration"]);
+
 export default function OverviewPage() {
   const { data: metrics } = useMetrics();
-  const { data: health } = useHealth();
+  const { data: health, dataUpdatedAt: healthUpdatedAt } = useHealth();
+  const { data: basicHealth } = useBasicHealth();
   const { data: rollup } = useRollup("daily");
   const { data: events } = useEvents(500);
 
@@ -85,31 +110,46 @@ export default function OverviewPage() {
 
           <Card>
             <CardTitle>System Health</CardTitle>
-            <div className="mt-4 space-y-3">
-              {health?.checks
-                ? Object.entries(health.checks).map(([name, check]) => (
-                    <div key={name} className="flex items-center justify-between">
-                      <span className="text-sm capitalize">{name}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge color={check.status === "ok" ? "green" : "red"}>
-                          {check.status}
-                        </Badge>
-                        <span className="text-xs text-text-secondary">
-                          {check.latency_ms}ms
-                        </span>
+            <div className="mt-4 space-y-4">
+              {health?.checks ? (
+                Object.entries(health.checks)
+                  .filter(
+                    ([name, check]) =>
+                      !HIDDEN_CHECKS.has(name) && check.status !== "not_configured",
+                  )
+                  .map(([name, check]) => {
+                    const meta = HEALTH_CHECK_META[name] ?? {
+                      label: name,
+                      describe: () => "Connectivity probe",
+                    };
+                    return (
+                      <div key={name} className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{meta.label}</div>
+                          <div className="text-xs text-text-secondary">
+                            {meta.describe(basicHealth?.storage)}
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge color={check.status === "ok" ? "green" : "red"}>
+                            {check.status === "ok" ? "OK" : "Down"}
+                          </Badge>
+                          <span className="text-xs text-text-secondary">
+                            {check.latency_ms} ms
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))
-                : (
-                    <p className="py-8 text-center text-sm text-text-secondary">Loading...</p>
-                  )}
-              {health && (
-                <div className="mt-2 flex items-center justify-between border-t border-border pt-3 text-sm">
-                  <span>Uptime</span>
-                  <span className="text-text-secondary">
-                    {Math.floor((health.uptime_seconds ?? 0) / 3600)}h{" "}
-                    {Math.floor(((health.uptime_seconds ?? 0) % 3600) / 60)}m
-                  </span>
+                    );
+                  })
+              ) : (
+                <p className="py-8 text-center text-sm text-text-secondary">
+                  Loading...
+                </p>
+              )}
+              {health && healthUpdatedAt > 0 && (
+                <div className="mt-2 flex items-center justify-between border-t border-border pt-3 text-xs text-text-secondary">
+                  <span>Last checked</span>
+                  <span>{new Date(healthUpdatedAt).toLocaleTimeString()}</span>
                 </div>
               )}
             </div>

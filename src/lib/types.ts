@@ -6,7 +6,7 @@ export interface HealthResponse {
 }
 
 export interface DeepHealthCheckResult {
-  status: "ok" | "error";
+  status: "ok" | "error" | "not_configured";
   latency_ms: number;
   error: string | null;
 }
