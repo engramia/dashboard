@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Shell } from "@/components/layout/Shell";
-import { Card, CardTitle, CardValue } from "@/components/ui/Card";
+import { Card, CardHeader, CardTitle, CardValue } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { ROIScoreChart } from "@/components/charts/ROIScoreChart";
 import { RecallBreakdown } from "@/components/charts/RecallBreakdown";
@@ -10,7 +11,16 @@ import { useMetrics } from "@/lib/hooks/useMetrics";
 import { useHealth } from "@/lib/hooks/useHealth";
 import { useBasicHealth } from "@/lib/hooks/useBasicHealth";
 import { useRollup, useEvents } from "@/lib/hooks/useAnalytics";
-import { TrendingUp } from "lucide-react";
+import { RefreshCw, TrendingUp } from "lucide-react";
+
+const AUTO_REFRESH_MS = 5 * 60_000;
+const OVERVIEW_QUERY_KEYS = [
+  ["health-deep"],
+  ["health-basic"],
+  ["metrics"],
+  ["rollup"],
+  ["events"],
+] as const;
 
 const HEALTH_CHECK_META: Record<
   string,
@@ -38,11 +48,33 @@ const HEALTH_CHECK_META: Record<
 const HIDDEN_CHECKS = new Set(["redis", "migration"]);
 
 export default function OverviewPage() {
+  const queryClient = useQueryClient();
   const { data: metrics } = useMetrics();
-  const { data: health, dataUpdatedAt: healthUpdatedAt } = useHealth();
+  const {
+    data: health,
+    dataUpdatedAt: healthUpdatedAt,
+    refetch: refetchHealth,
+    isFetching: isHealthFetching,
+  } = useHealth();
   const { data: basicHealth } = useBasicHealth();
   const { data: rollup } = useRollup("daily");
   const { data: events } = useEvents(500);
+
+  useEffect(() => {
+    const refreshAll = () => {
+      if (document.visibilityState !== "visible") return;
+      for (const key of OVERVIEW_QUERY_KEYS) {
+        queryClient.invalidateQueries({ queryKey: key });
+      }
+    };
+    const id = window.setInterval(refreshAll, AUTO_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [queryClient]);
+
+  const handleRecheckHealth = () => {
+    refetchHealth();
+    queryClient.invalidateQueries({ queryKey: ["health-basic"] });
+  };
 
   // Build ROI chart data from events
   const roiChartData = useMemo(() => {
@@ -111,7 +143,22 @@ export default function OverviewPage() {
           </Card>
 
           <Card>
-            <CardTitle>System Health</CardTitle>
+            <CardHeader className="mb-0">
+              <CardTitle>System Health</CardTitle>
+              <button
+                type="button"
+                onClick={handleRecheckHealth}
+                disabled={isHealthFetching}
+                aria-label="Recheck system health"
+                title="Recheck now"
+                className="rounded-md p-1 text-text-secondary transition-colors hover:bg-bg-elevated hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw
+                  size={14}
+                  className={isHealthFetching ? "animate-spin" : ""}
+                />
+              </button>
+            </CardHeader>
             <div className="mt-4 space-y-4">
               {health?.checks ? (
                 Object.entries(health.checks)
