@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { getBackendUrl } from "@/lib/backend-url"
+import { useBillingStatus } from "@/lib/hooks/useBilling"
 import { STRIPE_PRO_URL, STRIPE_TEAM_URL } from "@/lib/stripe-links"
 
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://engramia.dev/docs"
@@ -46,6 +47,28 @@ export default function SetupPage() {
   const [step, setStep] = useState(1)
   const [apiKey, setApiKey] = useState("")
   const [copied, setCopied] = useState(false)
+  const { data: billing } = useBillingStatus()
+
+  // If the user already has an active paid subscription, the setup wizard has
+  // nothing left to do — Stripe just redirected them back here as the default
+  // success URL. Skip the "Welcome -> Get started -> pick a plan" loop and
+  // hand off to the dashboard. Stripe webhooks are async, so on a fresh
+  // landing the first poll may still see plan_tier="sandbox"; useBillingStatus
+  // refetches every 30s so the next refresh catches up.
+  useEffect(() => {
+    if (!billing) return
+    const isActivePaid =
+      billing.plan_tier && billing.plan_tier !== "sandbox" && billing.status === "active"
+    if (isActivePaid) {
+      try {
+        localStorage.removeItem("engramia_new_api_key")
+        sessionStorage.removeItem("engramia_new_api_key")
+      } catch {
+        /* noop */
+      }
+      router.replace("/overview")
+    }
+  }, [billing, router])
 
   const handlePlanSelect = (plan: typeof PLANS[0]) => {
     if (plan.stripeUrl) {
