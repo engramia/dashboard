@@ -18,12 +18,14 @@ const HEALTH_CHECK_META: Record<
 > = {
   storage: {
     label: "Storage",
-    describe: (storageType) =>
-      storageType === "postgres"
-        ? "PostgreSQL · SELECT 1"
-        : storageType === "json"
-          ? "JSON file · key listing"
-          : "Connectivity probe",
+    describe: (storageType) => {
+      // /v1/health returns the storage backend's class name
+      // (e.g. "PostgresStorage", "JSONStorage"), not the env-var alias.
+      const lower = (storageType ?? "").toLowerCase()
+      if (lower.includes("postgres")) return "PostgreSQL · SELECT 1"
+      if (lower.includes("json")) return "JSON file · key listing"
+      return "Connectivity probe"
+    },
   },
   llm: { label: "LLM", describe: () => "Test completion call" },
   embedding: { label: "Embedding", describe: () => "Test embedding call" },
