@@ -4,8 +4,13 @@ import { useSession } from "next-auth/react";
 import { Shell } from "@/components/layout/Shell";
 import { Card, CardTitle, CardValue } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { useBillingStatus, useCreateBillingPortal } from "@/lib/hooks/useBilling";
-import { stripeCheckoutUrl } from "@/lib/stripe-links";
+import {
+  useBillingStatus,
+  useCreateBillingPortal,
+  useCreateCheckoutSession,
+} from "@/lib/hooks/useBilling";
+import { DEFAULT_INTERVAL, PLAN_PRICING } from "@/lib/stripe-checkout";
+import type { BillingInterval, BillingPlan } from "@/lib/types";
 import { AlertCircle, CreditCard, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
@@ -60,10 +65,12 @@ function UsageBar({
 export default function BillingPage() {
   const { data: session } = useSession();
   const email = session?.user?.email ?? "";
-  const tenantId = (session as { tenantId?: string } | null)?.tenantId ?? "";
   const { data: status, isLoading, error, refetch } = useBillingStatus();
   const portalMutation = useCreateBillingPortal();
+  const checkoutMutation = useCreateCheckoutSession();
   const [portalError, setPortalError] = useState<string>("");
+  const [upgradeError, setUpgradeError] = useState<string>("");
+  const [interval, setInterval] = useState<BillingInterval>(DEFAULT_INTERVAL);
 
   const handleManageSubscription = async () => {
     setPortalError("");
@@ -77,8 +84,23 @@ export default function BillingPage() {
     }
   };
 
-  const handleUpgrade = (planId: "pro" | "team") => {
-    window.location.href = stripeCheckoutUrl(planId, email, tenantId);
+  const handleUpgrade = async (planId: BillingPlan) => {
+    setUpgradeError("");
+    try {
+      const origin = window.location.origin;
+      const res = await checkoutMutation.mutateAsync({
+        plan: planId,
+        interval,
+        success_url: `${origin}/billing?checkout=success`,
+        cancel_url: `${origin}/billing?checkout=cancelled`,
+        ...(email ? { customer_email: email } : {}),
+      });
+      window.location.href = res.checkout_url;
+    } catch (e) {
+      setUpgradeError(
+        e instanceof Error ? e.message : "Couldn't start the Stripe checkout.",
+      );
+    }
   };
 
   return (
@@ -198,27 +220,56 @@ export default function BillingPage() {
             {/* Upgrade options — only for sandbox (Enterprise asks sales) */}
             {status.plan_tier === "sandbox" && (
               <Card>
-                <CardTitle>Upgrade</CardTitle>
-                <p className="text-sm text-text-secondary mt-1 mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>Upgrade</CardTitle>
+                  <div
+                    className="inline-flex rounded-lg bg-bg-elevated p-1"
+                    role="tablist"
+                    aria-label="Billing interval"
+                  >
+                    {(["yearly", "monthly"] as BillingInterval[]).map(value => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        aria-selected={interval === value}
+                        onClick={() => setInterval(value)}
+                        className={`px-3 py-1 text-xs rounded-md transition ${
+                          interval === value
+                            ? "bg-accent text-white"
+                            : "text-text-secondary hover:text-text-primary"
+                        }`}
+                      >
+                        {value === "yearly" ? "Yearly · save 20%" : "Monthly"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-text-secondary mt-2 mb-4">
                   Pick a paid plan to unlock higher limits and priority support.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <PlanUpgradeCard
                     planId="pro"
                     name="Pro"
-                    price="$29/mo"
+                    interval={interval}
                     highlights={["3,000 eval runs/mo", "50,000 patterns", "3 projects", "Priority support"]}
                     onUpgrade={handleUpgrade}
+                    pending={checkoutMutation.isPending}
                     accent
                   />
                   <PlanUpgradeCard
                     planId="team"
                     name="Team"
-                    price="$99/mo"
+                    interval={interval}
                     highlights={["15,000 eval runs/mo", "500,000 patterns", "15 projects", "RBAC + SSO"]}
                     onUpgrade={handleUpgrade}
+                    pending={checkoutMutation.isPending}
                   />
                 </div>
+                {upgradeError && (
+                  <p className="mt-3 text-sm text-red-400">{upgradeError}</p>
+                )}
                 <p className="text-xs text-text-secondary mt-4">
                   Need higher limits or custom terms?{" "}
                   <a href="mailto:sales@engramia.dev" className="text-accent hover:underline">
@@ -238,18 +289,21 @@ export default function BillingPage() {
 function PlanUpgradeCard({
   planId,
   name,
-  price,
+  interval,
   highlights,
   onUpgrade,
+  pending,
   accent,
 }: {
-  planId: "pro" | "team";
+  planId: BillingPlan;
   name: string;
-  price: string;
+  interval: BillingInterval;
   highlights: string[];
-  onUpgrade: (planId: "pro" | "team") => void;
+  onUpgrade: (planId: BillingPlan) => void;
+  pending: boolean;
   accent?: boolean;
 }) {
+  const pricing = PLAN_PRICING[planId][interval];
   return (
     <div
       className={`p-5 rounded-xl border ${
@@ -257,7 +311,10 @@ function PlanUpgradeCard({
       }`}
     >
       <div className="text-lg font-bold text-text-primary">{name}</div>
-      <div className="text-2xl font-bold text-text-primary mt-1 mb-3">{price}</div>
+      <div className="mt-1 mb-3 flex items-baseline gap-1">
+        <span className="text-2xl font-bold text-text-primary">{pricing.display}</span>
+        <span className="text-sm text-text-secondary">{pricing.sub}</span>
+      </div>
       <ul className="space-y-1 mb-4 text-sm">
         {highlights.map(h => (
           <li key={h} className="flex gap-2 text-text-secondary">
@@ -268,13 +325,14 @@ function PlanUpgradeCard({
       </ul>
       <button
         onClick={() => onUpgrade(planId)}
-        className={`w-full py-2 rounded-lg text-sm font-medium transition ${
+        disabled={pending}
+        className={`w-full py-2 rounded-lg text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
           accent
             ? "bg-accent hover:bg-accent/80 text-white"
             : "bg-bg-elevated hover:bg-border text-text-primary"
         }`}
       >
-        Upgrade to {name}
+        {pending ? "Opening checkout…" : `Upgrade to ${name}`}
       </button>
     </div>
   );

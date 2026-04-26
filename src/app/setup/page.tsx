@@ -3,41 +3,55 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { getBackendUrl } from "@/lib/backend-url"
-import { useBillingStatus } from "@/lib/hooks/useBilling"
-import { STRIPE_PRO_URL, STRIPE_TEAM_URL } from "@/lib/stripe-links"
+import { useBillingStatus, useCreateCheckoutSession } from "@/lib/hooks/useBilling"
+import {
+  DEFAULT_INTERVAL,
+  PLAN_PRICING,
+  parseIntervalParam,
+} from "@/lib/stripe-checkout"
+import type { BillingInterval, BillingPlan } from "@/lib/types"
 
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://engramia.dev/docs"
 
-const PLANS = [
+type PlanId = "sandbox" | BillingPlan
+
+interface PlanCard {
+  id: PlanId
+  name: string
+  description: string
+  features: string[]
+  cta: string
+  highlight: boolean
+  paid: boolean
+}
+
+const PLANS: PlanCard[] = [
   {
     id: "sandbox",
     name: "Sandbox",
-    price: "Free",
     description: "For development and testing",
     features: ["1 project", "10k patterns", "Community support"],
     cta: "Continue with Sandbox",
     highlight: false,
-    stripeUrl: null as string | null,
+    paid: false,
   },
   {
     id: "pro",
     name: "Pro",
-    price: "$29/mo",
     description: "For individual developers",
     features: ["5 projects", "500k patterns", "Priority support", "Eval analytics"],
     cta: "Start Pro Trial",
     highlight: true,
-    stripeUrl: STRIPE_PRO_URL,
+    paid: true,
   },
   {
     id: "team",
     name: "Team",
-    price: "$99/mo",
     description: "For teams and companies",
     features: ["Unlimited projects", "5M patterns", "RBAC", "SSO", "Dedicated support"],
     cta: "Start Team Trial",
     highlight: false,
-    stripeUrl: STRIPE_TEAM_URL,
+    paid: true,
   },
 ]
 
@@ -47,7 +61,10 @@ export default function SetupPage() {
   const [step, setStep] = useState(1)
   const [apiKey, setApiKey] = useState("")
   const [copied, setCopied] = useState(false)
+  const [interval, setInterval] = useState<BillingInterval>(DEFAULT_INTERVAL)
+  const [checkoutError, setCheckoutError] = useState<string>("")
   const { data: billing } = useBillingStatus()
+  const checkoutMutation = useCreateCheckoutSession()
 
   // After Stripe checkout succeeds, the Payment Link redirects back to this
   // page (its default success URL). Without a server-side check we'd just
@@ -86,13 +103,27 @@ export default function SetupPage() {
     router.replace("/overview")
   }, [billing, router])
 
-  const handlePlanSelect = (plan: typeof PLANS[0]) => {
-    if (plan.stripeUrl) {
-      const email = encodeURIComponent(session?.user?.email ?? "")
-      const tenant = encodeURIComponent((session as { tenantId?: string })?.tenantId ?? "")
-      window.location.href = `${plan.stripeUrl}?prefilled_email=${email}&client_reference_id=${tenant}`
-    } else {
+  const handlePlanSelect = async (plan: PlanCard) => {
+    if (!plan.paid) {
       setStep(3)
+      return
+    }
+    setCheckoutError("")
+    try {
+      const email = session?.user?.email ?? ""
+      const origin = window.location.origin
+      const res = await checkoutMutation.mutateAsync({
+        plan: plan.id as BillingPlan,
+        interval,
+        success_url: `${origin}/setup?checkout=success`,
+        cancel_url: `${origin}/setup?checkout=cancelled`,
+        ...(email ? { customer_email: email } : {}),
+      })
+      window.location.href = res.checkout_url
+    } catch (e) {
+      setCheckoutError(
+        e instanceof Error ? e.message : "Couldn't start the Stripe checkout.",
+      )
     }
   }
 
@@ -110,29 +141,34 @@ export default function SetupPage() {
     // (Sandbox). The sessionStorage entry is one-shot to avoid re-triggering
     // on every visit.
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
+    const pendingInterval = sessionStorage.getItem("engramia_pending_interval")
+    if (pendingInterval) {
+      const parsed = parseIntervalParam(pendingInterval)
+      setInterval(parsed)
+      sessionStorage.removeItem("engramia_pending_interval")
+    }
     if (!pendingPlan) return
     sessionStorage.removeItem("engramia_pending_plan")
 
     const target = PLANS.find(p => p.id === pendingPlan)
     if (!target) return
-    if (target.stripeUrl) {
-      // Wait until session is hydrated so prefilled_email/client_reference_id are populated.
+    if (target.paid) {
+      // Wait until session is hydrated so customer_email is populated.
       setStep(2)
-      // handlePlanSelect runs in a follow-up effect once session is available.
       sessionStorage.setItem("engramia_pending_redirect_plan", target.id)
     } else {
       setStep(3)
     }
   }, [])
 
-  // Trigger the Stripe redirect once the session is loaded — needed for
-  // prefilled_email and client_reference_id to be present in the URL.
+  // Trigger the Stripe redirect once the session is loaded — needed so the
+  // POST /v1/billing/checkout request carries customer_email.
   useEffect(() => {
     const pendingRedirectPlan = sessionStorage.getItem("engramia_pending_redirect_plan")
     if (!pendingRedirectPlan || !session?.user?.email) return
     sessionStorage.removeItem("engramia_pending_redirect_plan")
     const target = PLANS.find(p => p.id === pendingRedirectPlan)
-    if (target) handlePlanSelect(target)
+    if (target) void handlePlanSelect(target)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.email])
 
@@ -171,24 +207,63 @@ export default function SetupPage() {
         {step === 2 && (
           <div>
             <h2 className="text-2xl font-bold text-white text-center mb-2">Choose your plan</h2>
-            <p className="text-gray-400 text-center mb-8">You can upgrade or downgrade at any time</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {PLANS.map(plan => (
-                <div key={plan.id} className={`p-6 rounded-xl border ${plan.highlight ? "border-accent bg-accent/10" : "border-gray-800 bg-gray-900"}`}>
-                  {plan.highlight && <div className="text-xs text-accent font-medium mb-2 uppercase tracking-wide">Most popular</div>}
-                  <div className="text-xl font-bold text-white">{plan.name}</div>
-                  <div className="text-2xl font-bold text-white mt-1 mb-1">{plan.price}</div>
-                  <div className="text-sm text-gray-400 mb-4">{plan.description}</div>
-                  <ul className="space-y-1 mb-6">
-                    {plan.features.map(f => <li key={f} className="text-sm text-gray-300 flex gap-2"><span className="text-green-400">✓</span>{f}</li>)}
-                  </ul>
-                  <button onClick={() => handlePlanSelect(plan)}
-                    className={`w-full py-2 rounded-lg font-medium transition text-sm ${plan.highlight ? "bg-accent hover:bg-accent/80 text-white" : "bg-gray-800 hover:bg-gray-700 text-gray-200"}`}>
-                    {plan.cta}
+            <p className="text-gray-400 text-center mb-6">You can upgrade or downgrade at any time</p>
+
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex rounded-lg bg-gray-800 p-1" role="tablist" aria-label="Billing interval">
+                {(["yearly", "monthly"] as BillingInterval[]).map(value => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={interval === value}
+                    onClick={() => setInterval(value)}
+                    className={`px-4 py-1.5 text-sm rounded-md transition ${
+                      interval === value
+                        ? "bg-accent text-white"
+                        : "text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    {value === "yearly" ? "Yearly · save 20%" : "Monthly"}
                   </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {PLANS.map(plan => {
+                const pricing = plan.paid
+                  ? PLAN_PRICING[plan.id as BillingPlan][interval]
+                  : { display: "Free", sub: "" }
+                const disabled = plan.paid && checkoutMutation.isPending
+                return (
+                  <div key={plan.id} className={`p-6 rounded-xl border ${plan.highlight ? "border-accent bg-accent/10" : "border-gray-800 bg-gray-900"}`}>
+                    {plan.highlight && <div className="text-xs text-accent font-medium mb-2 uppercase tracking-wide">Most popular</div>}
+                    <div className="text-xl font-bold text-white">{plan.name}</div>
+                    <div className="mt-1 mb-1 flex items-baseline gap-1">
+                      <span className="text-2xl font-bold text-white">{pricing.display}</span>
+                      {pricing.sub && <span className="text-sm text-gray-400">{pricing.sub}</span>}
+                    </div>
+                    <div className="text-sm text-gray-400 mb-4">{plan.description}</div>
+                    <ul className="space-y-1 mb-6">
+                      {plan.features.map(f => <li key={f} className="text-sm text-gray-300 flex gap-2"><span className="text-green-400">✓</span>{f}</li>)}
+                    </ul>
+                    <button
+                      onClick={() => void handlePlanSelect(plan)}
+                      disabled={disabled}
+                      className={`w-full py-2 rounded-lg font-medium transition text-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                        plan.highlight ? "bg-accent hover:bg-accent/80 text-white" : "bg-gray-800 hover:bg-gray-700 text-gray-200"
+                      }`}
+                    >
+                      {disabled ? "Opening checkout…" : plan.cta}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            {checkoutError && (
+              <p className="mt-4 text-center text-sm text-red-400">{checkoutError}</p>
+            )}
           </div>
         )}
 

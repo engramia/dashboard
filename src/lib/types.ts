@@ -264,6 +264,21 @@ export interface BillingPortalResponse {
   portal_url: string;
 }
 
+export type BillingPlan = "pro" | "team";
+export type BillingInterval = "monthly" | "yearly";
+
+export interface BillingCheckoutRequest {
+  plan: BillingPlan;
+  interval: BillingInterval;
+  success_url: string;
+  cancel_url: string;
+  customer_email?: string;
+}
+
+export interface BillingCheckoutResponse {
+  checkout_url: string;
+}
+
 // ── Audit ──
 export interface AuditEvent {
   timestamp: string;

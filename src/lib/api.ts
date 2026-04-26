@@ -24,6 +24,8 @@ import type {
   AuditResponse,
   BillingStatus,
   BillingPortalResponse,
+  BillingCheckoutRequest,
+  BillingCheckoutResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -192,6 +194,13 @@ export class EngramiaClient {
     return this.request<BillingPortalResponse>(
       "GET",
       `/v1/billing/portal?${q.toString()}`,
+    );
+  }
+  createCheckoutSession(req: BillingCheckoutRequest) {
+    return this.request<BillingCheckoutResponse>(
+      "POST",
+      "/v1/billing/checkout",
+      req,
     );
   }
 

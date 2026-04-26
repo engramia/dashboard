@@ -17,12 +17,17 @@ type RegisterState =
 function RegisterInner() {
   const searchParams = useSearchParams()
 
-  // Persist ?plan=X into sessionStorage so it survives the verification round-trip
-  // (email link → /verify → /login) and is picked up by /setup once the user signs in.
+  // Persist ?plan=X (and optional ?interval=) into sessionStorage so they
+  // survive the verification round-trip (email link → /verify → /login) and
+  // are picked up by /setup once the user signs in.
   useEffect(() => {
     const plan = searchParams.get("plan")
     if (plan && VALID_PLANS.has(plan)) {
       sessionStorage.setItem("engramia_pending_plan", plan)
+    }
+    const interval = searchParams.get("interval")
+    if (interval) {
+      sessionStorage.setItem("engramia_pending_interval", interval)
     }
   }, [searchParams])
 
