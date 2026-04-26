@@ -124,11 +124,15 @@ export default function BillingPage() {
                   <CardValue>{PLAN_LABELS[status.plan_tier]?.name ?? status.plan_tier}</CardValue>
                   <div className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
                     <span>{PLAN_LABELS[status.plan_tier]?.price}</span>
-                    <span>·</span>
-                    <span>billed {status.billing_interval}ly</span>
-                    <Badge>{status.status}</Badge>
+                    {status.plan_tier !== "sandbox" && (
+                      <>
+                        <span>·</span>
+                        <span>billed {status.billing_interval}ly</span>
+                        <Badge>{status.status}</Badge>
+                      </>
+                    )}
                   </div>
-                  {status.period_end && (
+                  {status.plan_tier !== "sandbox" && status.period_end && (
                     <p className="text-xs text-text-secondary mt-2">
                       Next billing cycle: {new Date(status.period_end).toLocaleDateString()}
                     </p>
