@@ -49,25 +49,41 @@ export default function SetupPage() {
   const [copied, setCopied] = useState(false)
   const { data: billing } = useBillingStatus()
 
-  // If the user already has an active paid subscription, the setup wizard has
-  // nothing left to do — Stripe just redirected them back here as the default
-  // success URL. Skip the "Welcome -> Get started -> pick a plan" loop and
-  // hand off to the dashboard. Stripe webhooks are async, so on a fresh
-  // landing the first poll may still see plan_tier="sandbox"; useBillingStatus
-  // refetches every 30s so the next refresh catches up.
+  // After Stripe checkout succeeds, the Payment Link redirects back to this
+  // page (its default success URL). Without a server-side check we'd just
+  // rerender step 1 and the user would loop through "Welcome -> pick a plan".
+  //
+  // Two cases when the wizard has nothing more to ask:
+  //   - Fresh registration that just paid: jump to step 3 so they actually
+  //     see the API key + quick-start snippet (the api_key is stashed in
+  //     localStorage by /register and cleared on the "Go to Dashboard" button).
+  //   - Returning user with an active subscription: skip setup entirely and
+  //     replace the route with /overview so they don't accidentally re-enter
+  //     setup from a stale tab.
+  //
+  // The first poll right after Stripe redirect may still see plan_tier
+  // ="sandbox" — webhook is async — useBillingStatus refetches on its
+  // standard stale window, so the effect re-fires once the row catches up.
   useEffect(() => {
     if (!billing) return
     const isActivePaid =
       billing.plan_tier && billing.plan_tier !== "sandbox" && billing.status === "active"
-    if (isActivePaid) {
-      try {
-        localStorage.removeItem("engramia_new_api_key")
-        sessionStorage.removeItem("engramia_new_api_key")
-      } catch {
-        /* noop */
-      }
-      router.replace("/overview")
+    if (!isActivePaid) return
+
+    let hasFreshKey = false
+    try {
+      hasFreshKey = !!(
+        localStorage.getItem("engramia_new_api_key")
+        || sessionStorage.getItem("engramia_new_api_key")
+      )
+    } catch {
+      /* noop */
     }
+    if (hasFreshKey) {
+      setStep(3)
+      return
+    }
+    router.replace("/overview")
   }, [billing, router])
 
   const handlePlanSelect = (plan: typeof PLANS[0]) => {
