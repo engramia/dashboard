@@ -58,7 +58,12 @@ export default function SetupPage() {
   }
 
   useEffect(() => {
-    const key = sessionStorage.getItem("engramia_new_api_key") ?? ""
+    // Read from both stores — register now writes localStorage so the value
+    // survives Gmail's new-tab hop on the verify link, but legacy sessions
+    // may still hold it in sessionStorage.
+    const key = localStorage.getItem("engramia_new_api_key")
+      ?? sessionStorage.getItem("engramia_new_api_key")
+      ?? ""
     if (key) setApiKey(key)
 
     // Honour ?plan=X chosen on the marketing site: skip the welcome step and
@@ -189,7 +194,19 @@ results = client.recall("retry pattern")`}</code></pre>
               <a href={DOCS_URL} className="px-6 py-2.5 border border-gray-700 text-gray-300 rounded-lg hover:border-gray-600 transition text-sm">
                 Read the docs
               </a>
-              <button onClick={() => router.push("/overview")} className="px-6 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg text-sm font-medium transition">
+              <button
+                onClick={() => {
+                  // Setup walked through; don't bounce back into it on the next login.
+                  try {
+                    localStorage.removeItem("engramia_new_api_key")
+                    sessionStorage.removeItem("engramia_new_api_key")
+                  } catch {
+                    /* noop */
+                  }
+                  router.push("/overview")
+                }}
+                className="px-6 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg text-sm font-medium transition"
+              >
                 Go to Dashboard →
               </button>
             </div>

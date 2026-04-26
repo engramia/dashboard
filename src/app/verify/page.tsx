@@ -68,9 +68,11 @@ function VerifyInner() {
 
     let raw: string | null = null
     try {
-      raw = sessionStorage.getItem("engramia_pending_creds")
+      // localStorage so we survive the new-tab hop most webmail clients
+      // (Gmail in particular) take when opening verification links.
+      raw = localStorage.getItem("engramia_pending_creds")
     } catch {
-      // sessionStorage unavailable (private mode etc.) — fall back.
+      // localStorage unavailable (private mode etc.) — fall back.
     }
     if (!raw) {
       const t = window.setTimeout(fallbackToLogin, 1500)
@@ -86,7 +88,7 @@ function VerifyInner() {
     const fresh = parsed && typeof parsed.created_at === "number"
       && Date.now() - parsed.created_at < PENDING_CREDS_MAX_AGE_MS
     if (!fresh || !parsed?.email || !parsed?.password) {
-      try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
+      try { localStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
       const t = window.setTimeout(fallbackToLogin, 1500)
       return () => window.clearTimeout(t)
     }
@@ -99,7 +101,7 @@ function VerifyInner() {
         password: parsed!.password,
         redirect: false,
       }).catch(() => null)
-      try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
+      try { localStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
       if (result?.error || !result?.ok) {
         fallbackToLogin()
         return

@@ -73,11 +73,16 @@ function LoginInner() {
     // /verify might have stashed credentials for same-browser auto-login;
     // clear them once a real login has succeeded so they don't linger past
     // the verification window.
-    try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
-    // If a plan was selected on the marketing site (?plan=...) the user lands
-    // on /setup so that flow can finish (Stripe checkout for paid plans).
+    try { localStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
+    // Where to go next:
+    //   1. Marketing chose a plan (?plan=...) -> /setup so Stripe checkout fires
+    //   2. Brand-new user (just registered, /setup never completed) -> /setup
+    //      "Welcome -> Get started" walks them through plan + API key
+    //   3. Returning user -> /overview
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
-    window.location.href = pendingPlan ? "/setup" : "/overview"
+      || localStorage.getItem("engramia_pending_plan")
+    const isFreshUser = !!localStorage.getItem("engramia_new_api_key")
+    window.location.href = (pendingPlan || isFreshUser) ? "/setup" : "/overview"
   }
 
   const handleResend = async () => {
