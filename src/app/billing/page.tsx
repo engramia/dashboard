@@ -6,7 +6,7 @@ import { Card, CardTitle, CardValue } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { useBillingStatus, useCreateBillingPortal } from "@/lib/hooks/useBilling";
 import { stripeCheckoutUrl } from "@/lib/stripe-links";
-import { CreditCard, ExternalLink } from "lucide-react";
+import { AlertCircle, CreditCard, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 const PLAN_LABELS: Record<string, { name: string; price: string }> = {
@@ -128,14 +128,31 @@ export default function BillingPage() {
                       <>
                         <span>·</span>
                         <span>billed {status.billing_interval}ly</span>
-                        <Badge>{status.status}</Badge>
+                        <Badge color={status.cancel_at_period_end ? "amber" : undefined}>
+                          {status.cancel_at_period_end ? "cancels at period end" : status.status}
+                        </Badge>
                       </>
                     )}
                   </div>
-                  {status.plan_tier !== "sandbox" && status.period_end && (
+                  {status.plan_tier !== "sandbox" && status.period_end && !status.cancel_at_period_end && (
                     <p className="text-xs text-text-secondary mt-2">
                       Next billing cycle: {new Date(status.period_end).toLocaleDateString()}
                     </p>
+                  )}
+                  {status.plan_tier !== "sandbox" && status.cancel_at_period_end && status.period_end && (
+                    <div className="mt-3 flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
+                      <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-400" />
+                      <div>
+                        <p className="text-amber-200 font-medium">Subscription cancelled</p>
+                        <p className="text-text-secondary mt-0.5">
+                          You keep {PLAN_LABELS[status.plan_tier]?.name ?? status.plan_tier} access until{" "}
+                          <span className="text-text-primary">
+                            {new Date(status.period_end).toLocaleDateString()}
+                          </span>
+                          . The subscription will not renew. Click <span className="font-medium">Manage subscription</span> to resume billing.
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
                 <div className="flex gap-2">

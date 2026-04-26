@@ -257,6 +257,7 @@ export interface BillingStatus {
   period_end: string | null;
   overage_enabled: boolean;
   overage_budget_cap_cents: number | null;
+  cancel_at_period_end: boolean;
 }
 
 export interface BillingPortalResponse {
