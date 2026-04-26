@@ -70,6 +70,10 @@ function LoginInner() {
       setLoading(false)
       return
     }
+    // /verify might have stashed credentials for same-browser auto-login;
+    // clear them once a real login has succeeded so they don't linger past
+    // the verification window.
+    try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
     // If a plan was selected on the marketing site (?plan=...) the user lands
     // on /setup so that flow can finish (Stripe checkout for paid plans).
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")

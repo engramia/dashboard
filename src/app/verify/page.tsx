@@ -1,10 +1,14 @@
 "use client"
 import { useEffect, useState, Suspense } from "react"
+import { signIn } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { getBackendUrl } from "@/lib/backend-url"
 
 type Status = "loading" | "success" | "already-verified" | "expired" | "consumed" | "invalid" | "error"
+
+// Stale credentials older than this are ignored (matches the 24h verify token TTL).
+const PENDING_CREDS_MAX_AGE_MS = 24 * 60 * 60 * 1000
 
 function VerifyInner() {
   const searchParams = useSearchParams()
@@ -49,15 +53,60 @@ function VerifyInner() {
     }
   }, [token])
 
-  // On success, auto-redirect to /login with a prefilled email + "verified" banner
-  // after a short delay so the user sees the confirmation.
+  // On success, try to auto-login if the registering browser still has the
+  // credentials in sessionStorage. Skips the /login round-trip and lands the
+  // user straight on /setup. Falls back to /login (with prefilled email +
+  // "verified" banner) when the credentials are missing/stale or auto-login
+  // fails — e.g. when the verify link was opened in a different browser.
   useEffect(() => {
     if (status !== "success" && status !== "already-verified") return
-    const emailParam = verifiedEmail ? `&email=${encodeURIComponent(verifiedEmail)}` : ""
-    const redirectTimer = window.setTimeout(() => {
+
+    const fallbackToLogin = () => {
+      const emailParam = verifiedEmail ? `&email=${encodeURIComponent(verifiedEmail)}` : ""
       window.location.href = `/login?verified=true${emailParam}`
+    }
+
+    let raw: string | null = null
+    try {
+      raw = sessionStorage.getItem("engramia_pending_creds")
+    } catch {
+      // sessionStorage unavailable (private mode etc.) — fall back.
+    }
+    if (!raw) {
+      const t = window.setTimeout(fallbackToLogin, 1500)
+      return () => window.clearTimeout(t)
+    }
+
+    let parsed: { email?: string; password?: string; created_at?: number } | null = null
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      parsed = null
+    }
+    const fresh = parsed && typeof parsed.created_at === "number"
+      && Date.now() - parsed.created_at < PENDING_CREDS_MAX_AGE_MS
+    if (!fresh || !parsed?.email || !parsed?.password) {
+      try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
+      const t = window.setTimeout(fallbackToLogin, 1500)
+      return () => window.clearTimeout(t)
+    }
+
+    // Brief delay so the user sees the "Email verified" confirmation before
+    // we hand off to /setup.
+    const t = window.setTimeout(async () => {
+      const result = await signIn("credentials", {
+        email: parsed!.email,
+        password: parsed!.password,
+        redirect: false,
+      }).catch(() => null)
+      try { sessionStorage.removeItem("engramia_pending_creds") } catch { /* noop */ }
+      if (result?.error || !result?.ok) {
+        fallbackToLogin()
+        return
+      }
+      window.location.href = "/setup"
     }, 1500)
-    return () => window.clearTimeout(redirectTimer)
+    return () => window.clearTimeout(t)
   }, [status, verifiedEmail])
 
   return (

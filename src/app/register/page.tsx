@@ -51,6 +51,13 @@ function RegisterInner() {
       if (!res.ok) { setError(data.detail ?? "Registration failed"); setLoading(false); return }
       // The API key is stored now so it's available in /setup after verification.
       sessionStorage.setItem("engramia_new_api_key", data.api_key ?? "")
+      // Stash credentials for /verify so it can auto-login in the same browser
+      // and skip the /login round-trip. /verify clears this immediately after a
+      // successful sign-in, and the register form is the only writer.
+      sessionStorage.setItem(
+        "engramia_pending_creds",
+        JSON.stringify({ email, password, created_at: Date.now() })
+      )
       setState({
         stage: "pending",
         email,
