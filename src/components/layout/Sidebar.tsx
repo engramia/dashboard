@@ -12,6 +12,7 @@ import {
   Cog,
   ScrollText,
   CreditCard,
+  Settings,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useRole } from "@/lib/session";
@@ -27,6 +28,8 @@ const NAV_ITEMS = [
   { label: "Jobs", href: "/jobs", icon: Cog, perm: "jobs:list" },
   { label: "Audit", href: "/audit", icon: ScrollText, perm: "governance:admin" },
   { label: "Billing", href: "/billing", icon: CreditCard, perm: "billing:read" },
+  // Account self-service (delete, profile) — every logged-in user has "health".
+  { label: "Settings", href: "/settings/account", icon: Settings, perm: "health" },
 ];
 
 export function Sidebar() {

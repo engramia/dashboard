@@ -22,6 +22,8 @@ import type {
   ClassifyPatternResponse,
   DeletePatternResponse,
   AuditResponse,
+  DeletionRequestBody,
+  DeletionRequestResponse,
   BillingStatus,
   BillingPortalResponse,
   BillingCheckoutRequest,
@@ -201,6 +203,15 @@ export class EngramiaClient {
       "POST",
       "/v1/billing/checkout",
       req,
+    );
+  }
+
+  // Account deletion (self-service GDPR Art. 17)
+  requestAccountDeletion(body?: DeletionRequestBody) {
+    return this.request<DeletionRequestResponse>(
+      "POST",
+      "/auth/me/deletion-request",
+      body ?? {},
     );
   }
 

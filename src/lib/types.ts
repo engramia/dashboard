@@ -1,3 +1,21 @@
+// ── Account deletion (self-service) ──
+export interface DeletionRequestBody {
+  reason?: string;
+}
+
+export interface DeletionRequestResponse {
+  expires_at: string;
+  delivery_status: "sent" | "failed";
+}
+
+export interface DeletionConfirmResponse {
+  deleted: true;
+  tenant_id: string;
+  patterns_deleted: number;
+  keys_revoked: number;
+  stripe_subscription_cancelled: boolean;
+}
+
 // ── Health ──
 export interface HealthResponse {
   status: string;
