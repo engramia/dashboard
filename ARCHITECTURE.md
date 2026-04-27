@@ -115,6 +115,7 @@ The dashboard uses **NextAuth v5** as the session layer, with three providers:
 |-------|---------|------------|
 | `/login` | Sign in (credentials / Google / GitHub) | public |
 | `/register` | Create account | public |
+| `/verify?token=...` | Email verification landing — auto-redirects to /login or /setup | public |
 | `/setup` | Plan selection (Sandbox / Pro / Team) + Stripe Checkout | authenticated |
 | `/overview` | KPI cards, ROI trend, recall breakdown, system health | `health` |
 | `/patterns` | Pattern explorer — semantic search + table | `recall` |
@@ -125,6 +126,9 @@ The dashboard uses **NextAuth v5** as the session layer, with three providers:
 | `/governance` | Retention policy, data export, scoped delete | `governance:read` (view) / `governance:write`, `governance:delete` |
 | `/jobs` | Async job monitor | `jobs:list` / `jobs:cancel` |
 | `/audit` | Audit log viewer | `governance:admin` |
+| `/billing` | Plan, usage, Stripe Checkout / Customer Portal | `billing:read` (view) / `billing:manage` (mutations) |
+| `/settings/account` | Account info + self-service deletion (GDPR Art. 17) | authenticated (any role) |
+| `/account/confirm-delete?token=...` | Final confirmation step from deletion email — public token-bound | public |
 
 Items without permission are hidden from the sidebar by `components/layout/Sidebar.tsx`.
 
