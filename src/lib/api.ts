@@ -28,6 +28,9 @@ import type {
   BillingPortalResponse,
   BillingCheckoutRequest,
   BillingCheckoutResponse,
+  CredentialPublicView,
+  CredentialCreateRequest,
+  CredentialUpdateRequest,
 } from "./types";
 
 export class ApiError extends Error {
@@ -212,6 +215,33 @@ export class EngramiaClient {
       "POST",
       "/auth/me/deletion-request",
       body ?? {},
+    );
+  }
+
+  // Credentials (BYOK, Phase 6.6)
+  listCredentials() {
+    return this.request<CredentialPublicView[]>("GET", "/v1/credentials");
+  }
+  getCredential(id: string) {
+    return this.request<CredentialPublicView>("GET", `/v1/credentials/${id}`);
+  }
+  createCredential(req: CredentialCreateRequest) {
+    return this.request<CredentialPublicView>("POST", "/v1/credentials", req);
+  }
+  updateCredential(id: string, req: CredentialUpdateRequest) {
+    return this.request<CredentialPublicView>(
+      "PATCH",
+      `/v1/credentials/${id}`,
+      req,
+    );
+  }
+  revokeCredential(id: string) {
+    return this.request<void>("DELETE", `/v1/credentials/${id}`);
+  }
+  validateCredential(id: string) {
+    return this.request<CredentialPublicView>(
+      "POST",
+      `/v1/credentials/${id}/validate`,
     );
   }
 

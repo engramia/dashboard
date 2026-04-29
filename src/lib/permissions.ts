@@ -15,6 +15,8 @@ const ADMIN = [
   "keys:create", "keys:list", "keys:revoke", "keys:rotate",
   "governance:read", "governance:write", "governance:admin", "governance:delete",
   "billing:read", "billing:manage",
+  // Phase 6.6 BYOK — admin+ manage tenant LLM provider credentials.
+  "credentials:read", "credentials:write",
 ];
 
 const ROLE_PERMISSIONS: Record<string, Set<string>> = {

@@ -312,3 +312,47 @@ export interface AuditResponse {
   events: AuditEvent[];
   total: number;
 }
+
+// ── Credentials (BYOK, Phase 6.6) ──
+export type CredentialProvider =
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "ollama"
+  | "openai_compat";
+
+export type CredentialPurpose = "llm" | "embedding" | "both";
+
+export type CredentialStatus = "active" | "revoked" | "invalid";
+
+export interface CredentialPublicView {
+  id: string;
+  provider: CredentialProvider;
+  purpose: CredentialPurpose;
+  key_fingerprint: string;
+  base_url: string | null;
+  default_model: string | null;
+  default_embed_model: string | null;
+  role_models: Record<string, string>;
+  status: CredentialStatus;
+  last_used_at: string | null;
+  last_validated_at: string | null;
+  last_validation_error: string | null;
+  created_at: string;
+}
+
+export interface CredentialCreateRequest {
+  provider: CredentialProvider;
+  purpose: CredentialPurpose;
+  api_key: string;
+  base_url?: string | null;
+  default_model?: string | null;
+  default_embed_model?: string | null;
+}
+
+export interface CredentialUpdateRequest {
+  base_url?: string | null;
+  default_model?: string | null;
+  default_embed_model?: string | null;
+  role_models?: Record<string, string>;
+}
