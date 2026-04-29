@@ -48,5 +48,6 @@ test-results/
 CLAUDE.md
 .claude/
 
-# GitNexus local index - never commit
+# GitNexus tooling — local-only, never commit anything related to it
 .gitnexus/
+AGENTS.md
