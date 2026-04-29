@@ -36,6 +36,9 @@ export default function KeysPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     const result = await createMut.mutateAsync({ name, role });
+    // Close the create form first so the one-time key display modal is
+    // visible above the page rather than hidden behind the form modal.
+    setShowCreate(false);
     setNewKeyResult(result.key);
     setName("");
     setRole("editor");
@@ -45,6 +48,10 @@ export default function KeysPage() {
     if (!confirm("Rotate this key? The old key will stop working immediately.")) return;
     const result = await rotateMut.mutateAsync(id);
     setNewKeyResult(result.key);
+  }
+
+  function copyKey() {
+    if (newKeyResult) navigator.clipboard.writeText(newKeyResult);
   }
 
   async function handleRevoke(id: string) {
@@ -68,37 +75,6 @@ export default function KeysPage() {
             <Plus size={14} className="mr-1.5" /> Create Key
           </Button>
         </div>
-
-        {/* One-time key display */}
-        {newKeyResult && (
-          <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
-            <p className="mb-2 text-sm font-medium text-warning">
-              Copy this key now — it won't be shown again
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 rounded bg-bg-primary px-3 py-2 font-mono text-xs">
-                {newKeyResult}
-              </code>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  navigator.clipboard.writeText(newKeyResult);
-                }}
-              >
-                <Copy size={14} />
-              </Button>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => setNewKeyResult(null)}
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
 
         <Card className="p-0">
           <Table>
@@ -191,6 +167,41 @@ export default function KeysPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* One-time key display modal — shown after Create or Rotate.
+            Plaintext is rendered exactly once; closing the modal drops the
+            value from React state. Stays separate from the Create modal
+            so it doesn't get hidden behind a still-open form. */}
+        <Modal
+          open={!!newKeyResult}
+          onClose={() => setNewKeyResult(null)}
+          title="Copy your API key now"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-warning">
+              This key won&apos;t be shown again. Copy it to your password
+              manager before closing this dialog.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded bg-bg-primary px-3 py-2 font-mono text-xs break-all">
+                {newKeyResult}
+              </code>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={copyKey}
+                title="Copy to clipboard"
+              >
+                <Copy size={14} />
+              </Button>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button onClick={() => setNewKeyResult(null)}>
+                I&apos;ve saved it
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </Shell>
