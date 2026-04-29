@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { DemoModeBanner } from "./DemoModeBanner";
 
 export function Shell({ children }: { children: ReactNode }) {
   const { status } = useSession();
@@ -28,6 +29,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
+        <DemoModeBanner />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

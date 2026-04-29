@@ -183,10 +183,10 @@ export default function SetupPage() {
       <div className="w-full max-w-3xl">
         {/* Progress */}
         <div className="flex items-center gap-2 mb-10 justify-center">
-          {[1, 2, 3].map(s => (
+          {[1, 2, 3, 4].map(s => (
             <div key={s} className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${step >= s ? "bg-accent text-white" : "bg-gray-800 text-gray-500"}`}>{s}</div>
-              {s < 3 && <div className={`w-12 h-0.5 ${step > s ? "bg-accent" : "bg-gray-800"}`} />}
+              {s < 4 && <div className={`w-12 h-0.5 ${step > s ? "bg-accent" : "bg-gray-800"}`} />}
             </div>
           ))}
         </div>
@@ -309,8 +309,93 @@ results = client.recall("retry pattern")`}</code></pre>
                 Read the docs
               </a>
               <button
+                onClick={() => setStep(4)}
+                className="px-6 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg text-sm font-medium transition"
+              >
+                Next: add LLM key →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Add LLM key (BYOK) — optional, can be skipped */}
+        {step === 4 && (
+          <div>
+            <h2 className="text-2xl font-bold text-white text-center mb-2">
+              Bring your own LLM key
+            </h2>
+            <p className="text-gray-400 text-center mb-8">
+              Engramia uses your OpenAI / Anthropic / Gemini key for evaluations.
+              You control the costs, the model, and the provider — Engramia
+              never holds your billing relationship.
+            </p>
+
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="text-2xl">🔑</div>
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-white mb-1">
+                    Add your API key
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Open the LLM Providers page in the dashboard. The key is
+                    encrypted at rest with AES-256-GCM and never echoed back —
+                    you keep your own copy.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-gray-300 hover:text-white border border-gray-800 hover:border-gray-700 rounded-lg px-3 py-2 text-center transition"
+                >
+                  OpenAI keys ↗
+                </a>
+                <a
+                  href="https://console.anthropic.com/settings/keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-gray-300 hover:text-white border border-gray-800 hover:border-gray-700 rounded-lg px-3 py-2 text-center transition"
+                >
+                  Anthropic keys ↗
+                </a>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-gray-300 hover:text-white border border-gray-800 hover:border-gray-700 rounded-lg px-3 py-2 text-center transition"
+                >
+                  Gemini keys ↗
+                </a>
+              </div>
+            </div>
+
+            <div className="bg-yellow-900/20 border border-yellow-700/40 rounded-xl p-4 mb-6">
+              <div className="flex gap-3">
+                <div className="text-yellow-400 text-lg leading-6">⚠</div>
+                <div className="flex-1 text-sm text-yellow-100">
+                  <div className="font-semibold text-yellow-200 mb-1">
+                    Skip for now → demo mode
+                  </div>
+                  <p>
+                    You can skip this step and Engramia will return simulated
+                    responses (50 calls/month) so you can explore the UI. Real
+                    evaluations require a key — add one any time from{" "}
+                    <span className="font-mono text-yellow-200">
+                      Settings → LLM Providers
+                    </span>
+                    .
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 justify-center">
+              <button
                 onClick={() => {
-                  // Setup walked through; don't bounce back into it on the next login.
                   try {
                     localStorage.removeItem("engramia_new_api_key")
                     sessionStorage.removeItem("engramia_new_api_key")
@@ -319,9 +404,23 @@ results = client.recall("retry pattern")`}</code></pre>
                   }
                   router.push("/overview")
                 }}
+                className="px-6 py-2.5 border border-gray-700 text-gray-300 rounded-lg hover:border-gray-600 transition text-sm"
+              >
+                Skip for now → demo mode
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem("engramia_new_api_key")
+                    sessionStorage.removeItem("engramia_new_api_key")
+                  } catch {
+                    /* noop */
+                  }
+                  router.push("/settings/llm-providers")
+                }}
                 className="px-6 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg text-sm font-medium transition"
               >
-                Go to Dashboard →
+                Add LLM key →
               </button>
             </div>
           </div>
