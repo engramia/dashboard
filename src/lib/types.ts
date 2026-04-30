@@ -334,11 +334,13 @@ export interface CredentialPublicView {
   default_model: string | null;
   default_embed_model: string | null;
   role_models: Record<string, string>;
+  failover_chain: string[];
   status: CredentialStatus;
   last_used_at: string | null;
   last_validated_at: string | null;
   last_validation_error: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface CredentialCreateRequest {
@@ -354,5 +356,14 @@ export interface CredentialUpdateRequest {
   base_url?: string | null;
   default_model?: string | null;
   default_embed_model?: string | null;
-  role_models?: Record<string, string>;
+}
+
+// Phase 6.6 #2: Business+ tier-gated sub-resources.
+// Both endpoints require an ``If-Match`` header (ETag from `updated_at`).
+export interface RoleModelsUpdateRequest {
+  role_models: Record<string, string>;
+}
+
+export interface FailoverChainUpdateRequest {
+  failover_chain: string[];
 }

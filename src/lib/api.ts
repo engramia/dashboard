@@ -31,15 +31,27 @@ import type {
   CredentialPublicView,
   CredentialCreateRequest,
   CredentialUpdateRequest,
+  RoleModelsUpdateRequest,
+  FailoverChainUpdateRequest,
 } from "./types";
 
 export class ApiError extends Error {
+  // ``errorCode`` mirrors the ``error_code`` field on Engramia's structured
+  // error body (see api/errors.py). Lets the UI branch on a stable code
+  // (e.g. ``ENTITLEMENT_REQUIRED``) instead of parsing the human message.
+  public errorCode?: string;
+  public errorContext?: Record<string, unknown>;
+
   constructor(
     public status: number,
     public detail: string,
+    errorCode?: string,
+    errorContext?: Record<string, unknown>,
   ) {
     super(detail);
     this.name = "ApiError";
+    this.errorCode = errorCode;
+    this.errorContext = errorContext;
   }
 }
 
@@ -53,18 +65,28 @@ export class EngramiaClient {
     method: string,
     path: string,
     body?: unknown,
+    extraHeaders?: Record<string, string>,
   ): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${this.token}`,
         "Content-Type": "application/json",
+        ...(extraHeaders ?? {}),
       },
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new ApiError(res.status, err.detail ?? "Unknown error");
+      throw new ApiError(
+        res.status,
+        err.detail ?? "Unknown error",
+        err.error_code,
+        err.error_context,
+      );
+    }
+    if (res.status === 204) {
+      return undefined as T;
     }
     return res.json();
   }
@@ -242,6 +264,33 @@ export class EngramiaClient {
     return this.request<CredentialPublicView>(
       "POST",
       `/v1/credentials/${id}/validate`,
+    );
+  }
+
+  // Phase 6.6 #2 — Business+ tier-gated sub-resources. Both require an
+  // ``If-Match`` header derived from the credential's ``updated_at``.
+  updateRoleModels(
+    id: string,
+    req: RoleModelsUpdateRequest,
+    ifMatch: string,
+  ) {
+    return this.request<CredentialPublicView>(
+      "PATCH",
+      `/v1/credentials/${id}/role-models`,
+      req,
+      { "If-Match": ifMatch },
+    );
+  }
+  updateFailoverChain(
+    id: string,
+    req: FailoverChainUpdateRequest,
+    ifMatch: string,
+  ) {
+    return this.request<CredentialPublicView>(
+      "PATCH",
+      `/v1/credentials/${id}/failover-chain`,
+      req,
+      { "If-Match": ifMatch },
     );
   }
 

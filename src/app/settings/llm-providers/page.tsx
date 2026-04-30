@@ -22,7 +22,9 @@ import {
   useRevokeCredential,
   useValidateCredential,
 } from "@/lib/hooks/useCredentials";
+import { useBillingStatus } from "@/lib/hooks/useBilling";
 import { ApiError } from "@/lib/api";
+import { BusinessFeaturesPanel } from "./BusinessFeaturesPanel";
 import type {
   CredentialProvider,
   CredentialPurpose,
@@ -99,6 +101,7 @@ function providerLabel(id: CredentialProvider) {
 
 export default function LlmProvidersPage() {
   const credentialsQuery = useCredentials();
+  const billingQuery = useBillingStatus();
   const [addOpen, setAddOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<CredentialPublicView | null>(
     null,
@@ -106,6 +109,7 @@ export default function LlmProvidersPage() {
   const [bannerError, setBannerError] = useState<string>("");
 
   const credentials = credentialsQuery.data ?? [];
+  const currentTier = billingQuery.data?.plan_tier ?? "developer";
   const activeCount = credentials.filter((c) => c.status === "active").length;
   const hasAnyActive = activeCount > 0;
 
@@ -228,12 +232,21 @@ export default function LlmProvidersPage() {
           {credentials.length > 0 && (
             <div className="divide-y divide-border">
               {credentials.map((cred) => (
-                <CredentialRow
-                  key={cred.id}
-                  cred={cred}
-                  onRevoke={() => setRevokeTarget(cred)}
-                  onError={setBannerError}
-                />
+                <div key={cred.id} className="py-1">
+                  <CredentialRow
+                    cred={cred}
+                    onRevoke={() => setRevokeTarget(cred)}
+                    onError={setBannerError}
+                  />
+                  {cred.status !== "revoked" && (
+                    <BusinessFeaturesPanel
+                      cred={cred}
+                      allCreds={credentials}
+                      currentTier={currentTier}
+                      onError={setBannerError}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           )}
