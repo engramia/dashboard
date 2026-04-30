@@ -224,10 +224,11 @@ test.describe("BYOK / LLM Providers — create flow", () => {
     await authedPage.goto("/settings/llm-providers");
     await authedPage.getByRole("button", { name: /Add provider/i }).click();
 
-    // Switch the provider <select> to Ollama.
+    // Switch the provider <select> to Ollama. selectOption({label}) wants
+    // an exact string — wildcards aren't supported by the API.
     await authedPage
       .getByLabel(/^Provider$/i)
-      .selectOption({ label: /Ollama/i });
+      .selectOption({ value: "ollama" });
 
     await expect(authedPage.getByLabel(/Base URL/i)).toBeVisible();
 

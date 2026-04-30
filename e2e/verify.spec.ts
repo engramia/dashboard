@@ -15,12 +15,6 @@ function jsonRoute(body: unknown, status = 200) {
     });
 }
 
-async function mockVerify(page: Parameters<typeof test>[1] extends never ? never : Awaited<ReturnType<typeof page>>, response: (route: Route) => unknown): Promise<void> {
-  // Wildcard the host since getBackendUrl() varies (localhost / staging /
-  // prod) — the Playwright glob matches whichever the running browser uses.
-  await page.route("**/auth/verify", response as never);
-}
-
 test.describe("/verify — happy paths", () => {
   test("valid token shows 'Email verified' and redirects toward /login", async ({
     page,

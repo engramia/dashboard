@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import type { PlaywrightTestConfig } from "@playwright/test";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
@@ -23,7 +24,12 @@ const USE_STUB = process.env.USE_CORE_STUB === "1" || process.env.CI === "true";
 const STUB_PORT = 8000;
 const STUB_URL = `http://localhost:${STUB_PORT}`;
 
-const webServers = USE_STUB
+// Two-server CI config: a Node Core stub on STUB_PORT plus the production
+// Next.js build pointing NEXT_PUBLIC_API_URL at the stub. The explicit
+// type annotation prevents TS from inferring a union-of-two-shapes for the
+// `env` field, which would surface every key as `string | undefined` and
+// fail the index-signature constraint of TestConfigWebServer.env.
+const webServers: PlaywrightTestConfig["webServer"] = USE_STUB
   ? [
       {
         command: "node e2e/stubs/core-stub.mjs",
@@ -34,7 +40,7 @@ const webServers = USE_STUB
           DASHBOARD_TEST_EMAIL: process.env.DASHBOARD_TEST_EMAIL ?? "ci-test@engramia.dev",
           DASHBOARD_TEST_PASSWORD: process.env.DASHBOARD_TEST_PASSWORD ?? "ci-test-password",
           STUB_ROLE: process.env.STUB_ROLE ?? "admin",
-        },
+        } satisfies Record<string, string>,
         timeout: 30_000,
       },
       {
@@ -45,7 +51,7 @@ const webServers = USE_STUB
           NEXT_PUBLIC_API_URL: STUB_URL,
           NEXTAUTH_SECRET: "ci-test-secret-not-used-in-prod",
           NEXTAUTH_URL: DASHBOARD_URL,
-        },
+        } satisfies Record<string, string>,
         timeout: 120_000,
       },
     ]
