@@ -183,15 +183,17 @@ test.describe("BYOK / LLM Providers — create flow", () => {
     await authedPage
       .getByRole("button", { name: /Add provider/i })
       .click();
+    const modal = authedPage.locator("dialog");
     await expect(
-      authedPage.getByRole("heading", { name: /Add LLM provider/i }),
+      modal.getByRole("heading", { name: /Add LLM provider/i }),
     ).toBeVisible();
 
-    // OpenAI is the default selection — fill the API key.
-    await authedPage.getByLabel(/API key/i).fill("sk-test-1234567890");
-    await authedPage
-      .getByRole("button", { name: /Validate & save/i })
-      .click();
+    // OpenAI is the default selection — fill the API key. The labels in
+    // the modal are plain <label> tags without `htmlFor`, so getByLabel
+    // doesn't work — target the password input directly (only one in the
+    // modal) and click "Validate & save".
+    await modal.locator('input[type="password"]').fill("sk-test-1234567890");
+    await modal.getByRole("button", { name: /Validate & save/i }).click();
 
     // Brief success flash, then auto-close + the new row.
     await expect(authedPage.getByText(/Saved\./i)).toBeVisible();
@@ -224,23 +226,22 @@ test.describe("BYOK / LLM Providers — create flow", () => {
     await authedPage.goto("/settings/llm-providers");
     await authedPage.getByRole("button", { name: /Add provider/i }).click();
 
-    // Switch the provider <select> to Ollama. selectOption({label}) wants
-    // an exact string — wildcards aren't supported by the API.
-    await authedPage
-      .getByLabel(/^Provider$/i)
-      .selectOption({ value: "ollama" });
+    const modal = authedPage.locator("dialog");
+    // Switch the provider <select> to Ollama via its value (the labels in
+    // the modal aren't associated to controls via htmlFor, so getByLabel
+    // is unreliable; the only <select> in the modal is the provider one).
+    await modal.locator("select").selectOption("ollama");
 
-    await expect(authedPage.getByLabel(/Base URL/i)).toBeVisible();
+    // Base URL input appears for Ollama (type=url is unique in the modal).
+    await expect(modal.locator('input[type="url"]')).toBeVisible();
 
     // Try to submit without filling base_url — HTML5 required attribute
     // prevents the submit; the modal stays open and no POST is fired.
-    await authedPage.getByLabel(/API key/i).fill("anything");
-    await authedPage
-      .getByRole("button", { name: /Validate & save/i })
-      .click();
+    await modal.locator('input[type="password"]').fill("anything");
+    await modal.getByRole("button", { name: /Validate & save/i }).click();
 
     await expect(
-      authedPage.getByRole("heading", { name: /Add LLM provider/i }),
+      modal.getByRole("heading", { name: /Add LLM provider/i }),
     ).toBeVisible();
     expect(
       server.requestLog.some(
@@ -269,10 +270,9 @@ test.describe("BYOK / LLM Providers — create flow", () => {
 
     await authedPage.goto("/settings/llm-providers");
     await authedPage.getByRole("button", { name: /Add provider/i }).click();
-    await authedPage.getByLabel(/API key/i).fill("sk-bad");
-    await authedPage
-      .getByRole("button", { name: /Validate & save/i })
-      .click();
+    const modal = authedPage.locator("dialog");
+    await modal.locator('input[type="password"]').fill("sk-bad");
+    await modal.getByRole("button", { name: /Validate & save/i }).click();
 
     await expect(
       authedPage.getByText(/OpenAI rejected the key/i),
@@ -323,17 +323,16 @@ test.describe("BYOK / LLM Providers — validate + revoke", () => {
       .first()
       .click();
 
-    // Confirmation modal.
+    // Confirmation modal — fingerprint shows in BOTH the row and the
+    // modal, scope to the dialog to keep strict-mode locators happy.
+    const modal = authedPage.locator("dialog");
     await expect(
-      authedPage.getByRole("heading", { name: /Revoke credential/i }),
+      modal.getByRole("heading", { name: /Revoke credential/i }),
     ).toBeVisible();
-    await expect(authedPage.getByText(/sk-…AbCd/i)).toBeVisible();
+    await expect(modal.getByText(/sk-…AbCd/)).toBeVisible();
 
     // Confirm — DELETE fires.
-    await authedPage
-      .getByRole("button", { name: /^Revoke$/ })
-      .last()
-      .click();
+    await modal.getByRole("button", { name: /^Revoke$/ }).click();
 
     await expect.poll(() =>
       server.requestLog.some(
@@ -355,13 +354,11 @@ test.describe("BYOK / LLM Providers — validate + revoke", () => {
       .getByRole("button", { name: /^Revoke$/ })
       .first()
       .click();
+    const modal = authedPage.locator("dialog");
     await expect(
-      authedPage.getByRole("heading", { name: /Revoke credential/i }),
+      modal.getByRole("heading", { name: /Revoke credential/i }),
     ).toBeVisible();
-    await authedPage
-      .getByRole("button", { name: /^Cancel$/ })
-      .first()
-      .click();
+    await modal.getByRole("button", { name: /^Cancel$/ }).click();
 
     // Modal closed, no DELETE fired.
     await expect(

@@ -27,7 +27,7 @@ test.describe("/verify — happy paths", () => {
     await expect(page.getByText(/Redirecting you to sign in/i)).toBeVisible();
 
     // No localStorage creds → 1500 ms fallback redirect to /login?verified=true.
-    await page.waitForURL(/\/login\?verified=true/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true/, { timeout: 5_000 });
   });
 
   test("idempotent re-verification → 'Already verified' branch", async ({
@@ -42,7 +42,7 @@ test.describe("/verify — happy paths", () => {
 
     await expect(page.getByRole("heading", { name: /Already verified/i })).toBeVisible();
     // Same redirect contract as success path.
-    await page.waitForURL(/\/login\?verified=true/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true/, { timeout: 5_000 });
   });
 
   test("verifiedEmail propagates from sessionStorage to /login redirect", async ({
@@ -55,7 +55,7 @@ test.describe("/verify — happy paths", () => {
 
     await page.goto("/verify?token=abc");
 
-    await page.waitForURL(/\/login\?verified=true&email=/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true.*email=/, { timeout: 5_000 });
     expect(page.url()).toContain("email=user%40engramia.dev");
   });
 });
@@ -166,7 +166,7 @@ test.describe("/verify — auto-login fallback path", () => {
     await page.route("**/auth/verify", jsonRoute({ verified: true }));
 
     await page.goto("/verify?token=ok");
-    await page.waitForURL(/\/login\?verified=true/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true/, { timeout: 5_000 });
 
     // The page must wipe stale creds — never leave passwords sitting in
     // localStorage past the verify TTL.
@@ -185,7 +185,7 @@ test.describe("/verify — auto-login fallback path", () => {
     await page.route("**/auth/verify", jsonRoute({ verified: true }));
 
     await page.goto("/verify?token=ok");
-    await page.waitForURL(/\/login\?verified=true/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true/, { timeout: 5_000 });
   });
 
   test("missing email/password fields → fallback to /login", async ({
@@ -200,6 +200,6 @@ test.describe("/verify — auto-login fallback path", () => {
     await page.route("**/auth/verify", jsonRoute({ verified: true }));
 
     await page.goto("/verify?token=ok");
-    await page.waitForURL(/\/login\?verified=true/, { timeout: 5_000 });
+    await page.waitForURL(/\/login\/?\?verified=true/, { timeout: 5_000 });
   });
 });
