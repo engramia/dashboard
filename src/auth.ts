@@ -2,23 +2,9 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+import { detectRole } from "./lib/auth-helpers"
 
-async function detectRole(accessToken: string): Promise<string> {
-  try {
-    const res = await fetch(`${BACKEND_URL}/auth/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    })
-    if (res.ok) {
-      const data = await res.json()
-      if (typeof data.role === "string") return data.role
-    }
-  } catch {
-    // fall through
-  }
-  return "admin"
-}
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -91,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Detect role once per session (only on initial sign-in / token refresh)
       const accessToken = token.accessToken as string | undefined
       if (accessToken && !token.role) {
-        token.role = await detectRole(accessToken)
+        token.role = await detectRole(accessToken, { backendUrl: BACKEND_URL })
       }
       return token
     },
