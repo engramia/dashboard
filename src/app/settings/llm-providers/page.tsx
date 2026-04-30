@@ -25,6 +25,7 @@ import {
 import { useBillingStatus } from "@/lib/hooks/useBilling";
 import { ApiError } from "@/lib/api";
 import { BusinessFeaturesPanel } from "./BusinessFeaturesPanel";
+import { OllamaModelsPanel } from "./OllamaModelsPanel";
 import type {
   CredentialProvider,
   CredentialPurpose,
@@ -238,6 +239,9 @@ export default function LlmProvidersPage() {
                     onRevoke={() => setRevokeTarget(cred)}
                     onError={setBannerError}
                   />
+                  {cred.status !== "revoked" && cred.provider === "ollama" && (
+                    <OllamaModelsPanel cred={cred} onError={setBannerError} />
+                  )}
                   {cred.status !== "revoked" && (
                     <BusinessFeaturesPanel
                       cred={cred}

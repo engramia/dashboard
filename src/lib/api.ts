@@ -34,6 +34,7 @@ import type {
   RoleCostLimitsUpdateRequest,
   RoleModelsUpdateRequest,
   FailoverChainUpdateRequest,
+  OllamaModelsResponse,
 } from "./types";
 
 export class ApiError extends Error {
@@ -265,6 +266,16 @@ export class EngramiaClient {
     return this.request<CredentialPublicView>(
       "POST",
       `/v1/credentials/${id}/validate`,
+    );
+  }
+
+  // Phase 6.6 #4 — Ollama pulled-model discovery. Backend returns 400 for
+  // non-Ollama providers; UI must gate the call on provider === "ollama".
+  listCredentialModels(id: string, forceRefresh = false) {
+    const q = forceRefresh ? "?force_refresh=true" : "";
+    return this.request<OllamaModelsResponse>(
+      "GET",
+      `/v1/credentials/${id}/models${q}`,
     );
   }
 

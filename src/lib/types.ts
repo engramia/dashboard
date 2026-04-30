@@ -325,6 +325,21 @@ export type CredentialPurpose = "llm" | "embedding" | "both";
 
 export type CredentialStatus = "active" | "revoked" | "invalid";
 
+// One Ollama model entry returned by GET /v1/credentials/{id}/models.
+// Mirrors engramia.providers._ollama_native.OllamaModel — see Phase 6.6 #4.
+export interface OllamaModelInfo {
+  name: string;
+  size_bytes: number | null;
+  param_count: string | null;  // e.g. "7B", "70B"
+  quantization: string | null; // e.g. "Q4_K_M"
+}
+
+export interface OllamaModelsResponse {
+  models: OllamaModelInfo[];
+  fetched_at: string;       // ISO-8601 UTC
+  from_cache: boolean;       // false when force_refresh hit the network
+}
+
 export interface CredentialPublicView {
   id: string;
   provider: CredentialProvider;

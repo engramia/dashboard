@@ -65,6 +65,34 @@ export function useRevokeCredential() {
   });
 }
 
+// Phase 6.6 #4 — Ollama pulled-model discovery. Read-side, lazily enabled
+// by the caller (we do NOT want a query that auto-fires for every Ollama
+// row on the page — only when the user opens an Ollama-specific UI).
+export function useCredentialModels(id: string, enabled: boolean) {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["credentials", id, "models"],
+    queryFn: () => client!.listCredentialModels(id, false),
+    enabled: !!client && enabled,
+    // Match the backend cache TTL so the dashboard's "stale after 1 h" hint
+    // stays in sync with the actual data freshness.
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useRefreshCredentialModels() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => client!.listCredentialModels(id, true),
+    onSuccess: (data, id) => {
+      // Prime the read-cache so the next useCredentialModels call hits
+      // the just-refreshed snapshot rather than firing another request.
+      qc.setQueryData(["credentials", id, "models"], data);
+    },
+  });
+}
+
 export function useValidateCredential() {
   const client = useApiClient();
   const qc = useQueryClient();
