@@ -335,6 +335,8 @@ export interface CredentialPublicView {
   default_embed_model: string | null;
   role_models: Record<string, string>;
   failover_chain: string[];
+  /** Per-role monthly cents cap (#2b). Empty = no ceilings. */
+  role_cost_limits: Record<string, number>;
   status: CredentialStatus;
   last_used_at: string | null;
   last_validated_at: string | null;
@@ -366,4 +368,8 @@ export interface RoleModelsUpdateRequest {
 
 export interface FailoverChainUpdateRequest {
   failover_chain: string[];
+}
+
+export interface RoleCostLimitsUpdateRequest {
+  role_cost_limits: Record<string, number>;
 }

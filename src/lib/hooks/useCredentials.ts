@@ -7,6 +7,7 @@ import type {
   CredentialPublicView,
   CredentialUpdateRequest,
   FailoverChainUpdateRequest,
+  RoleCostLimitsUpdateRequest,
   RoleModelsUpdateRequest,
 } from "@/lib/types";
 
@@ -108,6 +109,23 @@ export function useUpdateFailoverChain() {
       cred: CredentialPublicView;
       req: FailoverChainUpdateRequest;
     }) => client!.updateFailoverChain(cred.id, req, etagFor(cred)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK });
+    },
+  });
+}
+
+export function useUpdateRoleCostLimits() {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      cred,
+      req,
+    }: {
+      cred: CredentialPublicView;
+      req: RoleCostLimitsUpdateRequest;
+    }) => client!.updateRoleCostLimits(cred.id, req, etagFor(cred)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK });
     },

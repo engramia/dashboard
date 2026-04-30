@@ -31,6 +31,7 @@ import type {
   CredentialPublicView,
   CredentialCreateRequest,
   CredentialUpdateRequest,
+  RoleCostLimitsUpdateRequest,
   RoleModelsUpdateRequest,
   FailoverChainUpdateRequest,
 } from "./types";
@@ -289,6 +290,18 @@ export class EngramiaClient {
     return this.request<CredentialPublicView>(
       "PATCH",
       `/v1/credentials/${id}/failover-chain`,
+      req,
+      { "If-Match": ifMatch },
+    );
+  }
+  updateRoleCostLimits(
+    id: string,
+    req: RoleCostLimitsUpdateRequest,
+    ifMatch: string,
+  ) {
+    return this.request<CredentialPublicView>(
+      "PATCH",
+      `/v1/credentials/${id}/role-cost-limits`,
       req,
       { "If-Match": ifMatch },
     );

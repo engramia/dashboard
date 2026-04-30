@@ -9,9 +9,11 @@ import { ApiError } from "@/lib/api";
 import {
   useUpdateRoleModels,
   useUpdateFailoverChain,
+  useUpdateRoleCostLimits,
 } from "@/lib/hooks/useCredentials";
 import { hasFeature } from "@/lib/entitlements";
 import { KNOWN_ROLES, ROLE_DESCRIPTIONS } from "@/lib/known-roles";
+import { formatCents } from "@/lib/rate-cards";
 import type { CredentialPublicView } from "@/lib/types";
 
 interface Props {
@@ -34,7 +36,9 @@ export function BusinessFeaturesPanel(props: Props) {
 
   const eligible = hasFeature(currentTier, "byok.role_models");
   const hasConfig =
-    Object.keys(cred.role_models).length > 0 || cred.failover_chain.length > 0;
+    Object.keys(cred.role_models).length > 0 ||
+    cred.failover_chain.length > 0 ||
+    Object.keys(cred.role_cost_limits).length > 0;
   const inGracePeriod = !eligible && hasConfig;
 
   return (
@@ -66,6 +70,7 @@ export function BusinessFeaturesPanel(props: Props) {
 
           <RoleModelsEditor {...props} disabled={!eligible} />
           <FailoverChainEditor {...props} disabled={!eligible} />
+          <RoleCostLimitsEditor {...props} disabled={!eligible} />
         </div>
       )}
     </div>
@@ -402,6 +407,166 @@ function FailoverChainEditor({
             disabled={submitting}
           >
             Clear chain
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Per-role cost ceiling editor (#2b)
+// ---------------------------------------------------------------------------
+
+function RoleCostLimitsEditor({
+  cred,
+  disabled,
+  onError,
+}: Props & { disabled: boolean }) {
+  // The user types dollars (UX-friendly); we send cents (API contract).
+  // Round to 2dp on display to avoid float-drift confusion.
+  const initial = Object.entries(cred.role_cost_limits).map(
+    ([role, cents]) => [role, (cents / 100).toFixed(2)] as [string, string],
+  );
+  const [draft, setDraft] = useState<Array<[string, string]>>(initial);
+  const [submitting, setSubmitting] = useState(false);
+  const update = useUpdateRoleCostLimits();
+
+  // Compute dirty by reconstructing the cents map from the draft and
+  // comparing against the persisted shape. String compare on entries
+  // would treat "5.00" vs "5" as different even when functionally equal.
+  const draftAsCents = (): Record<string, number> => {
+    const out: Record<string, number> = {};
+    for (const [role, dollars] of draft) {
+      const r = role.trim().toLowerCase();
+      const cents = Math.round(parseFloat(dollars || "0") * 100);
+      if (!r || !Number.isFinite(cents) || cents <= 0) continue;
+      out[r] = cents;
+    }
+    return out;
+  };
+  const dirty =
+    JSON.stringify(draftAsCents()) !== JSON.stringify(cred.role_cost_limits);
+
+  const addRow = () => setDraft([...draft, ["", ""]]);
+  const removeRow = (i: number) =>
+    setDraft(draft.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, field: 0 | 1, val: string) =>
+    setDraft(
+      draft.map((row, idx) =>
+        idx === i ? ((field === 0 ? [val, row[1]] : [row[0], val]) as [string, string]) : row,
+      ),
+    );
+
+  const handleSave = async () => {
+    onError("");
+    setSubmitting(true);
+    try {
+      await update.mutateAsync({ cred, req: { role_cost_limits: draftAsCents() } });
+    } catch (e) {
+      onError(formatError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleClear = async () => {
+    onError("");
+    setSubmitting(true);
+    try {
+      await update.mutateAsync({ cred, req: { role_cost_limits: {} } });
+      setDraft([]);
+    } catch (e) {
+      onError(formatError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <section>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-text-primary">
+          Per-role cost ceiling
+        </h3>
+        <Button
+          variant="ghost"
+          onClick={addRow}
+          disabled={disabled || draft.length >= 16}
+        >
+          <Plus size={12} />
+          Add ceiling
+        </Button>
+      </div>
+      <p className="mt-1 text-xs text-text-secondary">
+        Monthly $ cap per role override. When reached, calls fall back to{" "}
+        <code>default_model</code> for that role until the next UTC month.
+        No 429 — service continuity. Only applies to roles configured above.
+      </p>
+
+      {draft.length === 0 ? (
+        <div className="mt-2 text-xs italic text-text-secondary">
+          No ceilings configured. Role overrides bill against your provider
+          without a cap.
+        </div>
+      ) : (
+        <div className="mt-2 space-y-1">
+          {draft.map(([role, dollars], i) => {
+            const persistedCents = cred.role_cost_limits[role.toLowerCase()];
+            return (
+              <div key={i} className="flex items-center gap-2">
+                <RoleSelect
+                  value={role}
+                  onChange={(v) => updateRow(i, 0, v)}
+                  disabled={disabled}
+                />
+                <div className="flex flex-1 items-center gap-1">
+                  <span className="text-xs text-text-secondary">$</span>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={dollars}
+                    placeholder="50.00"
+                    onChange={(e) => updateRow(i, 1, e.target.value)}
+                    disabled={disabled}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-text-secondary">/mo</span>
+                </div>
+                {persistedCents !== undefined && (
+                  <span
+                    className="text-xs text-text-secondary"
+                    title={`Persisted: ${persistedCents} cents`}
+                  >
+                    ({formatCents(persistedCents)})
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  disabled={disabled}
+                  className="rounded p-1 text-text-secondary hover:bg-surface-hover"
+                  aria-label="Remove ceiling"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-2 flex gap-2">
+        <Button
+          onClick={handleSave}
+          disabled={disabled || submitting || !dirty}
+        >
+          Save
+        </Button>
+        {Object.keys(cred.role_cost_limits).length > 0 && (
+          <Button variant="ghost" onClick={handleClear} disabled={submitting}>
+            Clear all
           </Button>
         )}
       </div>
