@@ -32,6 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             tenantId: data.tenant_id,
             accessToken: data.access_token,
             refreshToken: data.refresh_token,
+            mustChangePassword: Boolean(data.must_change_password),
           }
         } catch {
           return null
@@ -51,6 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.tenantId = (user as { tenantId?: string }).tenantId
         token.accessToken = (user as { accessToken?: string }).accessToken
         token.refreshToken = (user as { refreshToken?: string }).refreshToken
+        token.mustChangePassword = (user as { mustChangePassword?: boolean }).mustChangePassword ?? false
       }
       // OAuth providers — exchange with backend
       if (account?.provider === "google" && account.id_token) {
@@ -89,6 +91,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.accessToken = token.accessToken as string | undefined
       session.apiKey = token.apiKey as string | undefined
       session.role = token.role as string | undefined
+      session.mustChangePassword = (token.mustChangePassword as boolean | undefined) ?? false
       return session
     },
   },

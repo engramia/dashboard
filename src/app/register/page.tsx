@@ -7,6 +7,16 @@ import { Eye, EyeOff } from "lucide-react"
 import { getBackendUrl } from "@/lib/backend-url"
 const TERMS_URL = process.env.NEXT_PUBLIC_LEGAL_TERMS_URL ?? "https://engramia.dev/legal/terms"
 const PRIVACY_URL = process.env.NEXT_PUBLIC_LEGAL_PRIVACY_URL ?? "https://engramia.dev/legal/privacy"
+const REQUEST_ACCESS_URL =
+  process.env.NEXT_PUBLIC_REQUEST_ACCESS_URL ?? "https://engramia.dev/request-access"
+
+// Manual-onboarding gate (Variant A — see Ops cloud-onboarding-architecture.md
+// COMP-006). When false (default at public launch), the page renders a closed
+// panel pointing prospective customers to the marketing-site request form
+// instead of the self-serve registration. Flip the env var to "true" + redeploy
+// once self-serve is reopened.
+const REGISTRATION_ENABLED =
+  (process.env.NEXT_PUBLIC_REGISTRATION_ENABLED ?? "").toLowerCase() === "true"
 
 const VALID_PLANS = new Set(["sandbox", "pro", "team"])
 
@@ -127,6 +137,38 @@ function RegisterInner() {
 
           <p className="mt-6 text-center text-sm text-gray-500">
             Already verified?{" "}
+            <Link href="/login" className="text-accent hover:text-accent/80">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Closed-state panel (default at public launch). Linked from /login when
+  // someone clicks "Sign up" while self-serve is disabled.
+  if (!REGISTRATION_ENABLED) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-950">
+        <div className="w-full max-w-md p-8 bg-gray-900 rounded-2xl border border-gray-800 shadow-xl text-center">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-lg font-bold text-white mb-4">
+            E
+          </div>
+          <h1 className="text-xl font-bold text-white">
+            We onboard customers manually right now
+          </h1>
+          <p className="text-gray-400 mt-3 leading-relaxed">
+            Tell us about your use case and we&apos;ll set you up. Most accounts are provisioned within 2 business days.
+          </p>
+          <a
+            href={REQUEST_ACCESS_URL}
+            className="inline-block mt-6 px-5 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg font-medium transition"
+          >
+            Request access
+          </a>
+          <p className="mt-6 text-sm text-gray-500">
+            Already have an account?{" "}
             <Link href="/login" className="text-accent hover:text-accent/80">
               Sign in
             </Link>

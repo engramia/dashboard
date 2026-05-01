@@ -24,6 +24,8 @@ import type {
   AuditResponse,
   DeletionRequestBody,
   DeletionRequestResponse,
+  ChangePasswordRequest,
+  ChangePasswordResponse,
   BillingStatus,
   BillingPortalResponse,
   BillingCheckoutRequest,
@@ -239,6 +241,15 @@ export class EngramiaClient {
       "POST",
       "/auth/me/deletion-request",
       body ?? {},
+    );
+  }
+
+  // Change-password — required after manual onboarding (Phase 6.5).
+  changePassword(body: ChangePasswordRequest) {
+    return this.request<ChangePasswordResponse>(
+      "POST",
+      "/auth/change-password",
+      body,
     );
   }
 

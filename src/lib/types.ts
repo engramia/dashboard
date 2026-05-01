@@ -1,3 +1,14 @@
+// ── Change password (required after manual onboarding) ──
+export interface ChangePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface ChangePasswordResponse {
+  access_token: string;
+  must_change_password: boolean;
+}
+
 // ── Account deletion (self-service) ──
 export interface DeletionRequestBody {
   reason?: string;
