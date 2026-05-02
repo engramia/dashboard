@@ -1,4 +1,18 @@
+import { test as anonymous, expect as anonymousExpect } from "@playwright/test";
 import { test, expect } from "../fixtures/dashboard-auth";
+
+anonymous.describe("Billing page (unauthenticated)", () => {
+  anonymous("redirects to /login when no session is present", async ({ page }) => {
+    // Shell.tsx is the auth-gate: useEffect → router.push("/login") on
+    // status === "unauthenticated", and `return null` blocks any render
+    // (and therefore any /v1/billing/status fetch) until the session
+    // resolves. This test guards against a future Shell refactor that
+    // forgets the gate — the BillingPage itself does not check auth.
+    await page.goto("/billing");
+    await page.waitForURL(/\/login(?:\?|$)/, { timeout: 10_000 });
+    anonymousExpect(page.url()).toMatch(/\/login(?:\?|$)/);
+  });
+});
 
 test.describe("Billing page", () => {
   test("upgrade card defaults to yearly pricing", async ({ authedPage: page }) => {
