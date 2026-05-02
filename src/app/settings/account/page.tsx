@@ -34,6 +34,7 @@ export default function AccountSettingsPage() {
         reason.trim() ? { reason: reason.trim() } : {},
       );
       setSubmitted({ expiresAt: res.expires_at, delivery: res.delivery_status });
+      reset();
     } catch (e) {
       // 409 owner_must_transfer or deletion_already_pending land here too.
       if (e instanceof ApiError) {
