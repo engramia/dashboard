@@ -13,7 +13,7 @@ import type { BillingInterval, BillingPlan } from "@/lib/types"
 
 const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "https://engramia.dev/docs"
 
-type PlanId = "sandbox" | BillingPlan
+type PlanId = "developer" | BillingPlan
 
 interface PlanCard {
   id: PlanId
@@ -27,29 +27,38 @@ interface PlanCard {
 
 const PLANS: PlanCard[] = [
   {
-    id: "sandbox",
-    name: "Sandbox",
-    description: "For development and testing",
-    features: ["1 project", "10k patterns", "Community support"],
-    cta: "Continue with Sandbox",
+    id: "developer",
+    name: "Developer",
+    description: "Free tier for hobby and adoption",
+    features: ["2 projects", "5,000 eval runs/mo", "10k patterns", "BYOK + community support"],
+    cta: "Continue free",
     highlight: false,
     paid: false,
   },
   {
     id: "pro",
     name: "Pro",
-    description: "For individual developers",
-    features: ["5 projects", "500k patterns", "Priority support", "Eval analytics"],
-    cta: "Start Pro Trial",
-    highlight: true,
+    description: "Solo dev in production",
+    features: ["10 projects", "50,000 eval runs/mo", "100k patterns", "Analytics + evolution + webhooks"],
+    cta: "Start Pro",
+    highlight: false,
     paid: true,
   },
   {
     id: "team",
     name: "Team",
-    description: "For teams and companies",
-    features: ["Unlimited projects", "5M patterns", "RBAC", "SSO", "Dedicated support"],
-    cta: "Start Team Trial",
+    description: "Production team with governance",
+    features: ["50 projects", "250,000 eval runs/mo", "1M patterns", "RBAC + audit + async + hosted MCP"],
+    cta: "Start Team",
+    highlight: true,
+    paid: true,
+  },
+  {
+    id: "business",
+    name: "Business",
+    description: "Organisation scale",
+    features: ["250 projects", "1M eval runs/mo", "10M patterns", "SSO + cross-agent memory + role routing"],
+    cta: "Start Business",
     highlight: false,
     paid: true,
   },
@@ -79,12 +88,15 @@ export default function SetupPage() {
   //     setup from a stale tab.
   //
   // The first poll right after Stripe redirect may still see plan_tier
-  // ="sandbox" — webhook is async — useBillingStatus refetches on its
-  // standard stale window, so the effect re-fires once the row catches up.
+  // ="developer" (or the legacy "sandbox" alias) — webhook is async —
+  // useBillingStatus refetches on its standard stale window, so the
+  // effect re-fires once the row catches up.
   useEffect(() => {
     if (!billing) return
+    const isFreeTier =
+      billing.plan_tier === "sandbox" || billing.plan_tier === "developer"
     const isActivePaid =
-      billing.plan_tier && billing.plan_tier !== "sandbox" && billing.status === "active"
+      billing.plan_tier && !isFreeTier && billing.status === "active"
     if (!isActivePaid) return
 
     let hasFreshKey = false
@@ -224,13 +236,13 @@ export default function SetupPage() {
                         : "text-gray-300 hover:text-white"
                     }`}
                   >
-                    {value === "yearly" ? "Yearly · save 20%" : "Monthly"}
+                    {value === "yearly" ? "Yearly · save 25%" : "Monthly"}
                   </button>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {PLANS.map(plan => {
                 const pricing = plan.paid
                   ? PLAN_PRICING[plan.id as BillingPlan][interval]

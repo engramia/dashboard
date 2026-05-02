@@ -4,16 +4,16 @@ test.describe("Billing page", () => {
   test("upgrade card defaults to yearly pricing", async ({ authedPage: page }) => {
     await page.goto("/billing");
 
-    // Sandbox accounts see the upgrade panel; the test fixture logs in as a
-    // sandbox user, so the section is expected to render.
+    // Free-tier accounts (developer / legacy sandbox) see the upgrade panel;
+    // the test fixture logs in as a developer-tier user.
     await expect(page.getByRole("heading", { name: "Upgrade", exact: true })).toBeVisible();
 
     // Yearly tab is selected by default and the Pro card shows the discounted
-    // headline price ($23, billed annually).
+    // headline price ($14, billed annually).
     await expect(
       page.getByRole("tab", { name: /yearly/i, selected: true }),
     ).toBeVisible();
-    await expect(page.getByText("$23", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("$14", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/billed annually/i).first()).toBeVisible();
   });
 
@@ -30,10 +30,12 @@ test.describe("Billing page", () => {
     await expect(
       page.getByRole("tab", { name: /^monthly$/i, selected: true }),
     ).toBeVisible();
-    // Pro monthly = $29
-    await expect(page.getByText("$29", { exact: true }).first()).toBeVisible();
-    // Team monthly = $99
-    await expect(page.getByText("$99", { exact: true }).first()).toBeVisible();
+    // Pro monthly = $19
+    await expect(page.getByText("$19", { exact: true }).first()).toBeVisible();
+    // Team monthly = $59
+    await expect(page.getByText("$59", { exact: true }).first()).toBeVisible();
+    // Business monthly = $199
+    await expect(page.getByText("$199", { exact: true }).first()).toBeVisible();
   });
 
   test(

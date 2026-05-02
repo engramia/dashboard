@@ -7,12 +7,16 @@ export const PLAN_PRICING: Record<
   { monthly: { display: string; sub: string }; yearly: { display: string; sub: string } }
 > = {
   pro: {
-    monthly: { display: "$29", sub: "/ mo" },
-    yearly: { display: "$23", sub: "/ mo billed annually" },
+    monthly: { display: "$19", sub: "/ mo" },
+    yearly: { display: "$14", sub: "/ mo billed annually" },
   },
   team: {
-    monthly: { display: "$99", sub: "/ mo" },
-    yearly: { display: "$79", sub: "/ mo billed annually" },
+    monthly: { display: "$59", sub: "/ mo" },
+    yearly: { display: "$44", sub: "/ mo billed annually" },
+  },
+  business: {
+    monthly: { display: "$199", sub: "/ mo" },
+    yearly: { display: "$149", sub: "/ mo billed annually" },
   },
 };
 

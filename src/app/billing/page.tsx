@@ -15,11 +15,19 @@ import { AlertCircle, CreditCard, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 const PLAN_LABELS: Record<string, { name: string; price: string }> = {
-  sandbox: { name: "Sandbox", price: "Free" },
-  pro: { name: "Pro", price: "$29/mo" },
-  team: { name: "Team", price: "$99/mo" },
+  // "sandbox" is the legacy alias of "developer" — kept so any pre-6.6
+  // row that escaped migration 024 still renders a label.
+  sandbox: { name: "Developer", price: "Free" },
+  developer: { name: "Developer", price: "Free" },
+  pro: { name: "Pro", price: "$19/mo" },
+  team: { name: "Team", price: "$59/mo" },
+  business: { name: "Business", price: "$199/mo" },
   enterprise: { name: "Enterprise", price: "Custom" },
 };
+
+function isFreeTier(planTier: string): boolean {
+  return planTier === "sandbox" || planTier === "developer";
+}
 
 function formatNumber(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -146,7 +154,7 @@ export default function BillingPage() {
                   <CardValue>{PLAN_LABELS[status.plan_tier]?.name ?? status.plan_tier}</CardValue>
                   <div className="mt-1 flex items-center gap-2 text-sm text-text-secondary">
                     <span>{PLAN_LABELS[status.plan_tier]?.price}</span>
-                    {status.plan_tier !== "sandbox" && (
+                    {!isFreeTier(status.plan_tier) && (
                       <>
                         <span>·</span>
                         <span>billed {status.billing_interval}ly</span>
@@ -156,12 +164,12 @@ export default function BillingPage() {
                       </>
                     )}
                   </div>
-                  {status.plan_tier !== "sandbox" && status.period_end && !status.cancel_at_period_end && (
+                  {!isFreeTier(status.plan_tier) && status.period_end && !status.cancel_at_period_end && (
                     <p className="text-xs text-text-secondary mt-2">
                       Next billing cycle: {new Date(status.period_end).toLocaleDateString()}
                     </p>
                   )}
-                  {status.plan_tier !== "sandbox" && status.cancel_at_period_end && status.period_end && (
+                  {!isFreeTier(status.plan_tier) && status.cancel_at_period_end && status.period_end && (
                     <div className="mt-3 flex items-start gap-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-sm">
                       <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-400" />
                       <div>
@@ -178,7 +186,7 @@ export default function BillingPage() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {(status.plan_tier === "pro" || status.plan_tier === "team") && (
+                  {(status.plan_tier === "pro" || status.plan_tier === "team" || status.plan_tier === "business") && (
                     <button
                       onClick={handleManageSubscription}
                       disabled={portalMutation.isPending}
@@ -217,8 +225,8 @@ export default function BillingPage() {
               </div>
             </Card>
 
-            {/* Upgrade options — only for sandbox (Enterprise asks sales) */}
-            {status.plan_tier === "sandbox" && (
+            {/* Upgrade options — only for the free tier (Enterprise asks sales). */}
+            {isFreeTier(status.plan_tier) && (
               <Card>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <CardTitle>Upgrade</CardTitle>
@@ -240,7 +248,7 @@ export default function BillingPage() {
                             : "text-text-secondary hover:text-text-primary"
                         }`}
                       >
-                        {value === "yearly" ? "Yearly · save 20%" : "Monthly"}
+                        {value === "yearly" ? "Yearly · save 25%" : "Monthly"}
                       </button>
                     ))}
                   </div>
@@ -248,21 +256,29 @@ export default function BillingPage() {
                 <p className="text-sm text-text-secondary mt-2 mb-4">
                   Pick a paid plan to unlock higher limits and priority support.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <PlanUpgradeCard
                     planId="pro"
                     name="Pro"
                     interval={interval}
-                    highlights={["3,000 eval runs/mo", "50,000 patterns", "3 projects", "Priority support"]}
+                    highlights={["50,000 eval runs/mo", "100,000 patterns", "10 projects", "Evolution + webhooks"]}
                     onUpgrade={handleUpgrade}
                     pending={checkoutMutation.isPending}
-                    accent
                   />
                   <PlanUpgradeCard
                     planId="team"
                     name="Team"
                     interval={interval}
-                    highlights={["15,000 eval runs/mo", "500,000 patterns", "15 projects", "RBAC + SSO"]}
+                    highlights={["250,000 eval runs/mo", "1M patterns", "50 projects", "RBAC + audit + hosted MCP"]}
+                    onUpgrade={handleUpgrade}
+                    pending={checkoutMutation.isPending}
+                    accent
+                  />
+                  <PlanUpgradeCard
+                    planId="business"
+                    name="Business"
+                    interval={interval}
+                    highlights={["1M eval runs/mo", "10M patterns", "250 projects", "SSO + cross-agent memory"]}
                     onUpgrade={handleUpgrade}
                     pending={checkoutMutation.isPending}
                   />

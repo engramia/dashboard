@@ -132,11 +132,11 @@ test.beforeEach(async ({ authedPage }) => {
   // and Playwright intercepts those calls in the browser.
   await authedPage.route("**/v1/credentials**", (route) => server.handle(route));
   // Billing status drives the currentTier prop on BusinessFeaturesPanel —
-  // mock a developer tier so paywalled UI is consistently hidden.
+  // mock the developer free tier so paywalled UI is consistently hidden.
   await authedPage.route("**/v1/billing/status", (route) =>
     route.fulfill(
       jsonResponse({
-        plan_tier: "sandbox",
+        plan_tier: "developer",
         status: "active",
         billing_interval: "month",
         eval_runs_used: 0,

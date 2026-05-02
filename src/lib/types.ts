@@ -273,8 +273,11 @@ export interface DeletePatternResponse {
 }
 
 // ── Billing ──
+// plan_tier values mirror engramia/billing/models.py PLAN_LIMITS keys.
+// "sandbox" is the legacy free-tier name preserved as an alias of
+// "developer" for any pre-6.6 row migration 024 missed.
 export interface BillingStatus {
-  plan_tier: "sandbox" | "pro" | "team" | "enterprise";
+  plan_tier: "sandbox" | "developer" | "pro" | "team" | "business" | "enterprise";
   status: string;
   billing_interval: "month" | "year";
   eval_runs_used: number;
@@ -293,7 +296,7 @@ export interface BillingPortalResponse {
   portal_url: string;
 }
 
-export type BillingPlan = "pro" | "team";
+export type BillingPlan = "pro" | "team" | "business";
 export type BillingInterval = "monthly" | "yearly";
 
 export interface BillingCheckoutRequest {

@@ -51,24 +51,32 @@ describe("parseIntervalParam", () => {
 // A diff in one without the others is a customer-visible bug. Snapshot
 // them so an accidental edit fails this test loudly.
 describe("PLAN_PRICING — cross-repo drift detector", () => {
-  it("Pro plan: $29 mo / $23 mo billed annually", () => {
-    expect(PLAN_PRICING.pro.monthly.display).toBe("$29");
+  it("Pro plan: $19 mo / $14 mo billed annually", () => {
+    expect(PLAN_PRICING.pro.monthly.display).toBe("$19");
     expect(PLAN_PRICING.pro.monthly.sub).toBe("/ mo");
-    expect(PLAN_PRICING.pro.yearly.display).toBe("$23");
+    expect(PLAN_PRICING.pro.yearly.display).toBe("$14");
     expect(PLAN_PRICING.pro.yearly.sub).toBe("/ mo billed annually");
   });
 
-  it("Team plan: $99 mo / $79 mo billed annually", () => {
-    expect(PLAN_PRICING.team.monthly.display).toBe("$99");
+  it("Team plan: $59 mo / $44 mo billed annually", () => {
+    expect(PLAN_PRICING.team.monthly.display).toBe("$59");
     expect(PLAN_PRICING.team.monthly.sub).toBe("/ mo");
-    expect(PLAN_PRICING.team.yearly.display).toBe("$79");
+    expect(PLAN_PRICING.team.yearly.display).toBe("$44");
     expect(PLAN_PRICING.team.yearly.sub).toBe("/ mo billed annually");
   });
 
-  it("only Pro and Team are sold via self-service checkout", () => {
-    // Sandbox/Developer is free (no checkout). Business/Enterprise is
-    // sales-led. If a new self-service plan lands, this test forces an
-    // explicit acknowledgement that the cross-repo mirrors were updated.
-    expect(Object.keys(PLAN_PRICING).sort()).toEqual(["pro", "team"]);
+  it("Business plan: $199 mo / $149 mo billed annually", () => {
+    expect(PLAN_PRICING.business.monthly.display).toBe("$199");
+    expect(PLAN_PRICING.business.monthly.sub).toBe("/ mo");
+    expect(PLAN_PRICING.business.yearly.display).toBe("$149");
+    expect(PLAN_PRICING.business.yearly.sub).toBe("/ mo billed annually");
+  });
+
+  it("Pro, Team, Business are sold via self-service checkout", () => {
+    // Developer (and the legacy "sandbox" alias) is free — no checkout.
+    // Enterprise is sales-led. If a new self-service plan lands, this
+    // test forces an explicit acknowledgement that the cross-repo
+    // mirrors were updated.
+    expect(Object.keys(PLAN_PRICING).sort()).toEqual(["business", "pro", "team"]);
   });
 });
