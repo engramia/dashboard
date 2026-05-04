@@ -7,8 +7,13 @@ import { Eye, EyeOff } from "lucide-react"
 import { getBackendUrl } from "@/lib/backend-url"
 const TERMS_URL = process.env.NEXT_PUBLIC_LEGAL_TERMS_URL ?? "https://engramia.dev/legal/terms"
 const PRIVACY_URL = process.env.NEXT_PUBLIC_LEGAL_PRIVACY_URL ?? "https://engramia.dev/legal/privacy"
-const REQUEST_ACCESS_URL =
+// Build-time default (used during SSR). The client effect below swaps to the
+// staging marketing URL when the dashboard is itself running on a staging
+// hostname so the closed-state CTA does not bounce users to the prod form
+// (which then submits to the prod waitlist API and emails the wrong env).
+const REQUEST_ACCESS_URL_DEFAULT =
   process.env.NEXT_PUBLIC_REQUEST_ACCESS_URL ?? "https://engramia.dev/request-access"
+const REQUEST_ACCESS_URL_STAGING = "https://staging-www.engramia.dev/request-access"
 
 // Manual-onboarding gate (Variant A — see Ops cloud-onboarding-architecture.md
 // COMP-006). When false (default at public launch), the page renders a closed
@@ -49,6 +54,17 @@ function RegisterInner() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [state, setState] = useState<RegisterState>({ stage: "form" })
+
+  // Resolve the marketing CTA target post-hydration to avoid the staging
+  // dashboard pointing at the prod marketing form. Initial value matches SSR
+  // (prod default) so React does not flag a hydration mismatch.
+  const [requestAccessUrl, setRequestAccessUrl] = useState(REQUEST_ACCESS_URL_DEFAULT)
+  useEffect(() => {
+    const host = window.location.hostname.toLowerCase()
+    if (/^staging[-.]/.test(host)) {
+      setRequestAccessUrl(REQUEST_ACCESS_URL_STAGING)
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -162,7 +178,7 @@ function RegisterInner() {
             Tell us about your use case and we&apos;ll set you up. Most accounts are provisioned within 2 business days.
           </p>
           <a
-            href={REQUEST_ACCESS_URL}
+            href={requestAccessUrl}
             className="inline-block mt-6 px-5 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg font-medium transition"
           >
             Request access
