@@ -30,12 +30,48 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
+  // Mirror the server-side complexity rules from
+  // engramia/api/cloud_auth.py:ChangePasswordRequest. Surfacing a precise
+  // English message client-side avoids two pitfalls: (a) the browser's
+  // built-in HTML5 messages are localised to the OS/browser language, and
+  // (b) Pydantic's 422 array reaches us late and is awkwardly formatted.
+  function clientPasswordComplaint(pw: string): string | null {
+    if (pw.length < 8) return "New password must be at least 8 characters.";
+    if (!/[A-Z]/.test(pw)) return "New password must contain an uppercase letter.";
+    if (!/[a-z]/.test(pw)) return "New password must contain a lowercase letter.";
+    if (!/[0-9]/.test(pw)) return "New password must contain a digit.";
+    if (!/[^A-Za-z0-9]/.test(pw)) return "New password must contain a special character.";
+    return null;
+  }
+
+  // FastAPI/Pydantic returns 422 with `detail: [{msg, loc, type, ...}, ...]`,
+  // while custom HTTPExceptions in cloud_auth.py raise `detail: {detail: "...",
+  // error_code: "..."}`. Either shape lands in ApiError.detail typed as
+  // `string` but is actually whatever the server JSON-encoded.
+  function extractApiErrorMessage(detail: unknown): string | null {
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail) && detail.length > 0) {
+      const first = detail[0] as { msg?: unknown };
+      if (typeof first?.msg === "string") {
+        // Pydantic v2 prefixes ValueError messages with "Value error, "
+        // — strip it for cleaner UX.
+        return first.msg.replace(/^Value error,\s*/, "");
+      }
+    }
+    if (detail && typeof detail === "object") {
+      const inner = (detail as { detail?: unknown }).detail;
+      if (typeof inner === "string") return inner;
+    }
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+    const complaint = clientPasswordComplaint(newPassword);
+    if (complaint) {
+      setError(complaint);
       return;
     }
     if (newPassword !== confirm) {
@@ -64,17 +100,8 @@ export default function ChangePasswordPage() {
     } catch (e) {
       let msg = "Could not change password. Please try again.";
       if (e instanceof ApiError) {
-        const detail = e.detail;
-        if (typeof detail === "string") {
-          msg = detail;
-        } else if (
-          detail &&
-          typeof detail === "object" &&
-          "detail" in detail &&
-          typeof (detail as { detail: unknown }).detail === "string"
-        ) {
-          msg = (detail as { detail: string }).detail;
-        }
+        const extracted = extractApiErrorMessage(e.detail);
+        if (extracted) msg = extracted;
       }
       setError(msg);
       setSubmitting(false);
@@ -116,7 +143,10 @@ export default function ChangePasswordPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* noValidate suppresses HTML5 native validation so the browser does
+            not show locale-specific messages (e.g. Czech "Vyplňte alespoň 8
+            znaků"). Validation runs in JS via clientPasswordComplaint above. */}
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1">
               Current password (the one we emailed)
@@ -152,7 +182,6 @@ export default function ChangePasswordPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
-                minLength={8}
                 disabled={submitting}
                 autoComplete="new-password"
                 className="w-full px-3 py-2 pr-10 rounded-lg bg-gray-800 border border-gray-700 text-white focus:border-accent focus:outline-none"
@@ -180,7 +209,6 @@ export default function ChangePasswordPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
-              minLength={8}
               disabled={submitting}
               autoComplete="new-password"
               className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-white focus:border-accent focus:outline-none"
