@@ -91,6 +91,14 @@ export default function ChangePasswordPage() {
         new_password: newPassword,
       });
       setDone(true);
+      // Mark this browser as needing first-time setup so /login redirects to
+      // /setup after re-auth. The signal is consumed there + on /setup.
+      // Set BEFORE signOut so it survives the post-signOut redirect.
+      try {
+        localStorage.setItem("engramia_pending_first_setup", "1");
+      } catch {
+        /* noop — private mode or quota; degraded UX is fine */
+      }
       // Sign out so NextAuth re-issues a fresh JWT (without the flag) on
       // next login. Fire-and-forget; we redirect after a brief confirmation.
       setTimeout(async () => {

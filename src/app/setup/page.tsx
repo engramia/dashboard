@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { getBackendUrl } from "@/lib/backend-url"
+import { useApiClient } from "@/lib/session"
 import { useBillingStatus, useCreateCheckoutSession } from "@/lib/hooks/useBilling"
 import {
   DEFAULT_INTERVAL,
@@ -67,6 +68,7 @@ const PLANS: PlanCard[] = [
 export default function SetupPage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const client = useApiClient()
   const [step, setStep] = useState(1)
   const [apiKey, setApiKey] = useState("")
   const [copied, setCopied] = useState(false)
@@ -139,6 +141,12 @@ export default function SetupPage() {
     }
   }
 
+  // Track whether we are in the middle of provisioning the waitlist user's
+  // first API key so the welcome screen shows a spinner instead of a blank
+  // "Get started" button — failures are surfaced inline.
+  const [provisioningKey, setProvisioningKey] = useState(false)
+  const [provisionError, setProvisionError] = useState("")
+
   useEffect(() => {
     // Read from both stores — register now writes localStorage so the value
     // survives Gmail's new-tab hop on the verify link, but legacy sessions
@@ -146,7 +154,46 @@ export default function SetupPage() {
     const key = localStorage.getItem("engramia_new_api_key")
       ?? sessionStorage.getItem("engramia_new_api_key")
       ?? ""
-    if (key) setApiKey(key)
+    if (key) {
+      setApiKey(key)
+      return
+    }
+    // Waitlist-onboarded path: /change-password sets this flag right before
+    // signing the user out. They re-authenticate, /login routes them here,
+    // and /setup creates their first key inline so the plaintext only ever
+    // lives in their browser. Operator never sees it (CLI shows "not
+    // provisioned" instead of the plaintext).
+    const needsFirstSetup =
+      localStorage.getItem("engramia_pending_first_setup") === "1"
+    if (!needsFirstSetup || !client) return
+
+    // Consume the flag immediately so a refresh during the call does not
+    // double-create. If the call fails we surface the error and let the
+    // user retry via the retry button.
+    localStorage.removeItem("engramia_pending_first_setup")
+    setProvisioningKey(true)
+    void (async () => {
+      try {
+        const res = await client.createKey({ name: "Default API Key" })
+        if (res.key) {
+          localStorage.setItem("engramia_new_api_key", res.key)
+          setApiKey(res.key)
+        } else {
+          setProvisionError(
+            "API key was created but the plaintext was missing from the response.",
+          )
+        }
+      } catch (e) {
+        setProvisionError(
+          e instanceof Error ? e.message : "Could not provision your first API key.",
+        )
+      } finally {
+        setProvisioningKey(false)
+      }
+    })()
+  }, [client])
+
+  useEffect(() => {
 
     // Honour ?plan=X chosen on the marketing site: skip the welcome step and
     // either jump to a Stripe checkout (Pro/Team) or land on the API key step
@@ -209,8 +256,20 @@ export default function SetupPage() {
             <div className="text-5xl mb-4">🧠</div>
             <h1 className="text-3xl font-bold text-white mb-2">Welcome to Engramia</h1>
             <p className="text-gray-400 mb-8">Your agents are about to get smarter. Let&apos;s get you set up in 2 minutes.</p>
-            <button onClick={() => setStep(2)} className="px-8 py-3 bg-accent hover:bg-accent/80 text-white rounded-lg font-medium text-lg transition">
-              Get started →
+            {provisioningKey && (
+              <p className="text-sm text-gray-500 mb-6">Provisioning your first API key…</p>
+            )}
+            {provisionError && (
+              <div className="mb-6 mx-auto max-w-md p-3 rounded-lg bg-red-900/30 border border-red-800 text-red-200 text-sm">
+                {provisionError} You can still continue and create one later from the Keys page.
+              </div>
+            )}
+            <button
+              onClick={() => setStep(2)}
+              disabled={provisioningKey}
+              className="px-8 py-3 bg-accent hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-lg transition"
+            >
+              {provisioningKey ? "Just a second…" : "Get started →"}
             </button>
           </div>
         )}

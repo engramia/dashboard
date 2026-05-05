@@ -78,11 +78,16 @@ function LoginInner() {
     //   1. Marketing chose a plan (?plan=...) -> /setup so Stripe checkout fires
     //   2. Brand-new user (just registered, /setup never completed) -> /setup
     //      "Welcome -> Get started" walks them through plan + API key
-    //   3. Returning user -> /overview
+    //   3. Waitlist-onboarded user finishing first password change -> /setup
+    //      where /setup creates their first API key inline (the operator
+    //      never holds a plaintext for these accounts)
+    //   4. Returning user -> /overview
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
       || localStorage.getItem("engramia_pending_plan")
     const isFreshUser = !!localStorage.getItem("engramia_new_api_key")
-    window.location.href = (pendingPlan || isFreshUser) ? "/setup" : "/overview"
+    const needsFirstSetup = localStorage.getItem("engramia_pending_first_setup") === "1"
+    const goSetup = pendingPlan || isFreshUser || needsFirstSetup
+    window.location.href = goSetup ? "/setup" : "/overview"
   }
 
   const handleResend = async () => {
