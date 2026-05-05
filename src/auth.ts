@@ -3,8 +3,7 @@ import Credentials from "next-auth/providers/credentials"
 import Google from "next-auth/providers/google"
 
 import { detectRole } from "./lib/auth-helpers"
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
+import { getBackendUrl } from "./lib/backend-url"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -15,8 +14,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
+        // Resolve at call time so the same image works on both staging and
+        // prod via NEXTAUTH_URL — see lib/backend-url.ts. NEXT_PUBLIC_API_URL
+        // is build-time-inlined to undefined on our images, which would
+        // silently target localhost:8000 from the dashboard container.
+        const backendUrl = getBackendUrl()
         try {
-          const res = await fetch(`${BACKEND_URL}/auth/login`, {
+          const res = await fetch(`${backendUrl}/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -57,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // OAuth providers — exchange with backend
       if (account?.provider === "google" && account.id_token) {
         try {
-          const res = await fetch(`${BACKEND_URL}/auth/oauth`, {
+          const res = await fetch(`${getBackendUrl()}/auth/oauth`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -79,7 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Detect role once per session (only on initial sign-in / token refresh)
       const accessToken = token.accessToken as string | undefined
       if (accessToken && !token.role) {
-        token.role = await detectRole(accessToken, { backendUrl: BACKEND_URL })
+        token.role = await detectRole(accessToken, { backendUrl: getBackendUrl() })
       }
       return token
     },
