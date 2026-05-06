@@ -146,6 +146,11 @@ export default function SetupPage() {
   // "Get started" button — failures are surfaced inline.
   const [provisioningKey, setProvisioningKey] = useState(false)
   const [provisionError, setProvisionError] = useState("")
+  // Survives the lifetime of /setup once detected. Drives step 2 to show a
+  // plan acknowledgement (the operator already picked the plan via
+  // `engramia waitlist approve --plan <tier>`) instead of the picker that
+  // /register users see.
+  const [arrivedFromWaitlist, setArrivedFromWaitlist] = useState(false)
 
   useEffect(() => {
     // Read from both stores — register now writes localStorage so the value
@@ -171,6 +176,7 @@ export default function SetupPage() {
     // double-create. If the call fails we surface the error and let the
     // user retry via the retry button.
     localStorage.removeItem("engramia_pending_first_setup")
+    setArrivedFromWaitlist(true)
     setProvisioningKey(true)
     void (async () => {
       try {
@@ -274,8 +280,64 @@ export default function SetupPage() {
           </div>
         )}
 
-        {/* Step 2: Plan selection */}
-        {step === 2 && (
+        {/* Step 2 (waitlist path): plan acknowledgement.
+            The operator already chose the plan via `engramia waitlist
+            approve --plan <tier>`, so showing a picker would either
+            confuse the user (they were promised X) or create a costly
+            mistake (they accidentally pick Developer, downgrading
+            themselves out of a paid pilot). Show the assigned plan as
+            a confirmation card and a Continue button. */}
+        {step === 2 && arrivedFromWaitlist && (() => {
+          const tier = billing?.plan_tier ?? "developer"
+          // PLANS covers developer/pro/team/business; fall back for
+          // enterprise (and any future tier) so the panel still renders.
+          const fallback: { name: string; description: string; features: string[] } = {
+            name: tier.charAt(0).toUpperCase() + tier.slice(1),
+            description: "Provisioned for you by the Engramia team",
+            features: [],
+          }
+          const detail = PLANS.find(p => p.id === tier) ?? fallback
+          return (
+            <div>
+              <h2 className="text-2xl font-bold text-white text-center mb-2">
+                You&apos;re on the {detail.name} plan
+              </h2>
+              <p className="text-gray-400 text-center mb-8">
+                Provisioned for you by the Engramia team — no payment step needed.
+              </p>
+
+              <div className="max-w-md mx-auto p-6 rounded-xl border border-accent bg-accent/10 mb-8">
+                <div className="text-xl font-bold text-white">{detail.name}</div>
+                <div className="text-sm text-gray-400 mt-1 mb-4">{detail.description}</div>
+                {detail.features.length > 0 && (
+                  <ul className="space-y-1">
+                    {detail.features.map(f => (
+                      <li key={f} className="text-sm text-gray-300 flex gap-2">
+                        <span className="text-green-400">✓</span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="text-center">
+                <button
+                  onClick={() => setStep(3)}
+                  className="px-6 py-2.5 bg-accent hover:bg-accent/80 text-white rounded-lg font-medium transition"
+                >
+                  Continue →
+                </button>
+                <p className="text-xs text-gray-500 mt-3">
+                  You can upgrade or downgrade later from Settings &rarr; Billing.
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Step 2 (register path): plan picker. */}
+        {step === 2 && !arrivedFromWaitlist && (
           <div>
             <h2 className="text-2xl font-bold text-white text-center mb-2">Choose your plan</h2>
             <p className="text-gray-400 text-center mb-6">You can upgrade or downgrade at any time</p>
