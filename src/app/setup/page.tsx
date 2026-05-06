@@ -500,7 +500,7 @@ results = client.recall("retry pattern")`}</code></pre>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <a
                   href="https://platform.openai.com/api-keys"
                   target="_blank"
@@ -525,6 +525,31 @@ results = client.recall("retry pattern")`}</code></pre>
                 >
                   Gemini keys ↗
                 </a>
+              </div>
+
+              {/* Escape hatch into the full BYOK page — the three quick-links
+                  above are an opinionated shortlist (the providers Engramia
+                  documents end-to-end). The /settings/llm-providers page
+                  exposes the rest: Ollama for local models, custom
+                  OpenAI-compatible endpoints, per-role routing, failover
+                  chain, role cost ceilings (Business+). */}
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem("engramia_new_api_key")
+                      sessionStorage.removeItem("engramia_new_api_key")
+                      localStorage.removeItem("engramia_setup_origin")
+                    } catch {
+                      /* noop */
+                    }
+                    router.push("/settings/llm-providers")
+                  }}
+                  className="text-xs text-gray-400 hover:text-accent underline underline-offset-4 transition"
+                >
+                  More options (Ollama, custom endpoints, per-role routing) →
+                </button>
               </div>
             </div>
 
