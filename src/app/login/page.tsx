@@ -81,11 +81,21 @@ function LoginInner() {
     //   3. Waitlist-onboarded user finishing first password change -> /setup
     //      where /setup creates their first API key inline (the operator
     //      never holds a plaintext for these accounts)
-    //   4. Returning user -> /overview
+    //   4. ?setup=1 query param — operator-driven testing aid, written by
+    //      `engramia cloud create-account --no-force-change` so the test
+    //      account walks through the same wizard a waitlist user would.
+    //      We seed `engramia_pending_first_setup=1` so /setup follows its
+    //      ack-panel + inline-createKey branch.
+    //   5. Returning user -> /overview
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
       || localStorage.getItem("engramia_pending_plan")
     const isFreshUser = !!localStorage.getItem("engramia_new_api_key")
-    const needsFirstSetup = localStorage.getItem("engramia_pending_first_setup") === "1"
+    const wantsTestSetup = searchParams.get("setup") === "1"
+    if (wantsTestSetup) {
+      try { localStorage.setItem("engramia_pending_first_setup", "1") } catch { /* noop */ }
+    }
+    const needsFirstSetup =
+      localStorage.getItem("engramia_pending_first_setup") === "1"
     const goSetup = pendingPlan || isFreshUser || needsFirstSetup
     window.location.href = goSetup ? "/setup" : "/overview"
   }
