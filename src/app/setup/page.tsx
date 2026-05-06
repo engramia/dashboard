@@ -146,13 +146,24 @@ export default function SetupPage() {
   // "Get started" button — failures are surfaced inline.
   const [provisioningKey, setProvisioningKey] = useState(false)
   const [provisionError, setProvisionError] = useState("")
-  // Survives the lifetime of /setup once detected. Drives step 2 to show a
-  // plan acknowledgement (the operator already picked the plan via
-  // `engramia waitlist approve --plan <tier>`) instead of the picker that
-  // /register users see.
+  // Drives step 2 to show a plan acknowledgement (the operator already
+  // picked the plan via `engramia waitlist approve --plan <tier>`) instead
+  // of the picker that /register users see. Hydrated from the persistent
+  // localStorage origin flag below so refresh / re-mount during onboarding
+  // doesn't lose the signal — the volatile pending-first-setup flag is
+  // consumed on first hit, so it can't carry the bit any further on its
+  // own.
   const [arrivedFromWaitlist, setArrivedFromWaitlist] = useState(false)
 
   useEffect(() => {
+    // Hydrate the waitlist-origin signal from localStorage first. This
+    // survives refresh / new-tab navigation through the rest of the
+    // wizard. We clear it in the step-4 buttons (alongside the api_key)
+    // so a returning user landing on /setup again later sees the picker.
+    if (localStorage.getItem("engramia_setup_origin") === "waitlist") {
+      setArrivedFromWaitlist(true)
+    }
+
     // Read from both stores — register now writes localStorage so the value
     // survives Gmail's new-tab hop on the verify link, but legacy sessions
     // may still hold it in sessionStorage.
@@ -172,10 +183,12 @@ export default function SetupPage() {
       localStorage.getItem("engramia_pending_first_setup") === "1"
     if (!needsFirstSetup || !client) return
 
-    // Consume the flag immediately so a refresh during the call does not
-    // double-create. If the call fails we surface the error and let the
-    // user retry via the retry button.
+    // Consume the volatile flag immediately so a refresh during the call
+    // does not double-create. The persistent `engramia_setup_origin` flag
+    // below carries the "this is a waitlist onboarding" bit through the
+    // rest of the wizard.
     localStorage.removeItem("engramia_pending_first_setup")
+    localStorage.setItem("engramia_setup_origin", "waitlist")
     setArrivedFromWaitlist(true)
     setProvisioningKey(true)
     void (async () => {
@@ -532,6 +545,11 @@ results = client.recall("retry pattern")`}</code></pre>
                   try {
                     localStorage.removeItem("engramia_new_api_key")
                     sessionStorage.removeItem("engramia_new_api_key")
+                    // The user has finished onboarding; if they ever come
+                    // back to /setup later (e.g. via a deep link) they
+                    // should see the standard /register-style picker, not
+                    // the waitlist acknowledgement.
+                    localStorage.removeItem("engramia_setup_origin")
                   } catch {
                     /* noop */
                   }
@@ -546,6 +564,7 @@ results = client.recall("retry pattern")`}</code></pre>
                   try {
                     localStorage.removeItem("engramia_new_api_key")
                     sessionStorage.removeItem("engramia_new_api_key")
+                    localStorage.removeItem("engramia_setup_origin")
                   } catch {
                     /* noop */
                   }
