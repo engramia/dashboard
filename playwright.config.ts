@@ -61,6 +61,11 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: "**/*.spec.ts",
   testIgnore: ["**/stubs/**"],
+  // Asserts DASHBOARD_TEST_EMAIL / DASHBOARD_TEST_PASSWORD are set BEFORE
+  // any spec runs, so a missing env surfaces as one clear error instead
+  // of 27 identical fixture errors per spec × N retries. See
+  // playwright.global-setup.ts for the exact contract.
+  globalSetup: require.resolve("./playwright.global-setup"),
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

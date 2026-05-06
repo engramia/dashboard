@@ -19,7 +19,9 @@ import { clsx } from "clsx";
 import { useRole } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
 
-const NAV_ITEMS = [
+// Exported so Sidebar.test.ts can pin the role → visible-items invariant
+// without rendering the component (vitest runs in node env, no DOM).
+export const NAV_ITEMS = [
   { label: "Overview", href: "/overview", icon: LayoutDashboard, perm: "health" },
   { label: "Patterns", href: "/patterns", icon: Brain, perm: "recall" },
   { label: "Analytics", href: "/analytics", icon: BarChart3, perm: "analytics:read" },
@@ -33,7 +35,7 @@ const NAV_ITEMS = [
   { label: "LLM Providers", href: "/settings/llm-providers", icon: Sparkles, perm: "credentials:read" },
   // Account self-service (delete, profile) — every logged-in user has "health".
   { label: "Settings", href: "/settings/account", icon: Settings, perm: "health" },
-];
+] as const;
 
 export function Sidebar() {
   const pathname = usePathname();

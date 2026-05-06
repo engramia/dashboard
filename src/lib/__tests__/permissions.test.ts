@@ -28,6 +28,7 @@ describe("hasPermission — role hierarchy", () => {
     "aging",
     "feedback:decay",
     "jobs:cancel",
+    "patterns:delete_own",
     "analytics:rollup",
   ];
 
@@ -44,10 +45,14 @@ describe("hasPermission — role hierarchy", () => {
     "governance:write",
     "governance:admin",
     "governance:delete",
+    "audit:read",
     "billing:read",
     "billing:manage",
     "credentials:read",
     "credentials:write",
+    "credentials:role_models:write",
+    "credentials:failover_chain:write",
+    "credentials:role_cost_limits:write",
   ];
 
   describe("reader", () => {

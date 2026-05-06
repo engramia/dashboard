@@ -218,6 +218,17 @@ test.describe("BYOK / LLM Providers — create flow", () => {
     await expect(
       authedPage.getByText(/No providers configured yet/i),
     ).toHaveCount(0);
+
+    // SECURITY INVARIANT — the raw API key MUST NOT appear in the DOM
+    // after submit. The modal closes; the row shows only a fingerprint
+    // suffix (e.g. "sk-…AbCd"). Leaking the full key into the rendered
+    // page would defeat the masked-input UX (input[type=password]) and
+    // expose the key to anyone screenshotting / shoulder-surfing.
+    const html = await authedPage.content();
+    expect(
+      html,
+      "Raw API key 'sk-test-1234567890' leaked into the rendered DOM after submit — credentials UI must mask the value end-to-end.",
+    ).not.toContain("sk-test-1234567890");
   });
 
   test("Ollama selection requires base_url before submit", async ({

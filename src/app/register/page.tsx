@@ -23,7 +23,18 @@ const REQUEST_ACCESS_URL_STAGING = "https://staging-www.engramia.dev/request-acc
 const REGISTRATION_ENABLED =
   (process.env.NEXT_PUBLIC_REGISTRATION_ENABLED ?? "").toLowerCase() === "true"
 
-const VALID_PLANS = new Set(["sandbox", "pro", "team"])
+// Plan tiers accepted as ?plan= query param. Mirrors Core/billing/models.py
+// PLAN_LIMITS: developer | pro | team | business | enterprise. "sandbox" is
+// the legacy alias for "developer" (pre-Phase-6.6, migration 024) — kept so
+// older Website CTAs that haven't been redeployed still resolve.
+const VALID_PLANS = new Set([
+  "developer",
+  "pro",
+  "team",
+  "business",
+  "enterprise",
+  "sandbox",
+])
 
 type RegisterState =
   | { stage: "form" }
