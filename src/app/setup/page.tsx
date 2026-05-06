@@ -76,6 +76,20 @@ export default function SetupPage() {
   const [checkoutError, setCheckoutError] = useState<string>("")
   const { data: billing } = useBillingStatus()
   const checkoutMutation = useCreateCheckoutSession()
+  // Track whether we are in the middle of provisioning the waitlist user's
+  // first API key so the welcome screen shows a spinner instead of a blank
+  // "Get started" button — failures are surfaced inline.
+  const [provisioningKey, setProvisioningKey] = useState(false)
+  const [provisionError, setProvisionError] = useState("")
+  // Drives step 2 to show a plan acknowledgement (the operator already
+  // picked the plan via `engramia waitlist approve --plan <tier>`) instead
+  // of the picker that /register users see. Hydrated from the persistent
+  // localStorage origin flag so refresh / re-mount during onboarding
+  // doesn't lose the signal — the volatile pending-first-setup flag is
+  // consumed on first hit, so it can't carry the bit any further on its
+  // own. Declared up here (above the first useEffect that depends on it)
+  // because TypeScript catches use-before-declare across closures.
+  const [arrivedFromWaitlist, setArrivedFromWaitlist] = useState(false)
 
   // After Stripe checkout succeeds, the Payment Link redirects back to this
   // page (its default success URL). Without a server-side check we'd just
@@ -95,6 +109,15 @@ export default function SetupPage() {
   // effect re-fires once the row catches up.
   useEffect(() => {
     if (!billing) return
+    // Waitlist / test-onboard users land here mid-flow with the same
+    // active+paid signal a returning user has — but they are NOT done
+    // with onboarding (the inline createKey is still in flight, the
+    // ack panel + quickstart hasn't been shown). The "active+paid →
+    // skip to /overview" redirect below is meant only for returning
+    // users who navigated into /setup by mistake. Bail early so the
+    // wizard runs end-to-end for waitlist users.
+    if (arrivedFromWaitlist) return
+
     const isFreeTier =
       billing.plan_tier === "sandbox" || billing.plan_tier === "developer"
     const isActivePaid =
@@ -115,7 +138,7 @@ export default function SetupPage() {
       return
     }
     router.replace("/overview")
-  }, [billing, router])
+  }, [billing, router, arrivedFromWaitlist])
 
   const handlePlanSelect = async (plan: PlanCard) => {
     if (!plan.paid) {
@@ -140,20 +163,6 @@ export default function SetupPage() {
       )
     }
   }
-
-  // Track whether we are in the middle of provisioning the waitlist user's
-  // first API key so the welcome screen shows a spinner instead of a blank
-  // "Get started" button — failures are surfaced inline.
-  const [provisioningKey, setProvisioningKey] = useState(false)
-  const [provisionError, setProvisionError] = useState("")
-  // Drives step 2 to show a plan acknowledgement (the operator already
-  // picked the plan via `engramia waitlist approve --plan <tier>`) instead
-  // of the picker that /register users see. Hydrated from the persistent
-  // localStorage origin flag below so refresh / re-mount during onboarding
-  // doesn't lose the signal — the volatile pending-first-setup flag is
-  // consumed on first hit, so it can't carry the bit any further on its
-  // own.
-  const [arrivedFromWaitlist, setArrivedFromWaitlist] = useState(false)
 
   useEffect(() => {
     // Hydrate the waitlist-origin signal from localStorage first. This

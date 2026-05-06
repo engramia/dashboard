@@ -81,12 +81,15 @@ function LoginInner() {
     //   3. Waitlist-onboarded user finishing first password change -> /setup
     //      where /setup creates their first API key inline (the operator
     //      never holds a plaintext for these accounts)
-    //   4. ?setup=1 query param — operator-driven testing aid, written by
-    //      `engramia cloud create-account --no-force-change` so the test
-    //      account walks through the same wizard a waitlist user would.
-    //      We seed `engramia_pending_first_setup=1` so /setup follows its
-    //      ack-panel + inline-createKey branch.
-    //   5. Returning user -> /overview
+    //   4. Account exists but has zero api_keys yet — /setup. Catches both
+    //      `cloud create-account --no-api-key` test users AND any waitlist
+    //      account whose change-password→setup-flag relay was lost (e.g.
+    //      private-window switch). Avoids needing an explicit ?setup=1.
+    //   5. ?setup=1 query param — backwards-compat for the recipe printed by
+    //      older `engramia cloud create-account --no-force-change` runs.
+    //      Seeds `engramia_pending_first_setup=1` so /setup follows the
+    //      ack-panel + inline-createKey branch even before #4 fires.
+    //   6. Returning user -> /overview
     const pendingPlan = sessionStorage.getItem("engramia_pending_plan")
       || localStorage.getItem("engramia_pending_plan")
     const isFreshUser = !!localStorage.getItem("engramia_new_api_key")
@@ -96,7 +99,34 @@ function LoginInner() {
     }
     const needsFirstSetup =
       localStorage.getItem("engramia_pending_first_setup") === "1"
-    const goSetup = pendingPlan || isFreshUser || needsFirstSetup
+
+    // Zero-keys server-side check: if the account has no api_keys, treat as
+    // "needs setup" without requiring any client-side flag. One small extra
+    // GET on every login, but the response is cached by the API auth layer
+    // so it's effectively free for returning users (who hit this path daily).
+    let hasZeroKeys = false
+    try {
+      const session = await import("next-auth/react").then(m => m.getSession())
+      const token = (session as { accessToken?: string } | null)?.accessToken
+      if (token) {
+        const keysRes = await fetch(`${getBackendUrl()}/v1/keys`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (keysRes.ok) {
+          const data = (await keysRes.json()) as { keys?: unknown[] }
+          hasZeroKeys = Array.isArray(data?.keys) && data.keys.length === 0
+        }
+      }
+    } catch {
+      // Network blip / token not yet hydrated — fall through to the other
+      // signals; worst case the user lands on /overview and can navigate
+      // to /setup themselves.
+    }
+
+    if (hasZeroKeys) {
+      try { localStorage.setItem("engramia_pending_first_setup", "1") } catch { /* noop */ }
+    }
+    const goSetup = pendingPlan || isFreshUser || needsFirstSetup || hasZeroKeys
     window.location.href = goSetup ? "/setup" : "/overview"
   }
 
