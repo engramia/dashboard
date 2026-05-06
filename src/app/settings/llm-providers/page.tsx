@@ -402,6 +402,15 @@ function AddCredentialModal({
         base_url: meta.requiresBaseUrl ? baseUrl : null,
         default_model: defaultModel || null,
       });
+      // Wipe the secret state in the same React commit that flips to the
+      // success view below. The form (and its <input>) unmounts in that
+      // commit, so the plaintext key disappears from the DOM immediately —
+      // no 800ms window where a screenshot or DOM snapshot could grab it.
+      // Belt-and-suspenders: clear the values too in case the form is ever
+      // refactored to keep the input mounted across the success flash.
+      setApiKey("");
+      setBaseUrl("");
+      setDefaultModel("");
       setSuccess(true);
       // Auto-close on success after a brief confirmation flash so the user
       // sees the row appear in the list.
@@ -421,7 +430,23 @@ function AddCredentialModal({
 
   return (
     <Modal open={open} onClose={handleClose} title="Add LLM provider">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      {success ? (
+        // Swap the form for a success view in the same commit that wipes
+        // the secret state. The <input type="password"> with the plaintext
+        // value is unmounted, so the key disappears from the DOM
+        // immediately — no race window during the 800ms auto-close.
+        <div className="py-8 text-center">
+          <CheckCircle2
+            className="mx-auto mb-3 text-green-400"
+            size={36}
+            aria-hidden="true"
+          />
+          <p className="text-sm text-text-primary">
+            Saved. Engramia validated the key and is now using it.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-xs font-medium text-text-secondary">
             Provider
@@ -517,13 +542,6 @@ function AddCredentialModal({
           />
         </div>
 
-        {success && (
-          <div className="flex items-center gap-2 text-sm text-green-400">
-            <CheckCircle2 size={16} />
-            Saved. Engramia validated the key and is now using it.
-          </div>
-        )}
-
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={handleClose}>
             Cancel
@@ -532,7 +550,8 @@ function AddCredentialModal({
             {submitting ? "Validating…" : "Validate & save"}
           </Button>
         </div>
-      </form>
+        </form>
+      )}
     </Modal>
   );
 }
