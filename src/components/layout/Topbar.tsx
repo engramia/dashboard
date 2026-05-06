@@ -28,7 +28,7 @@ function PlanBadge() {
       title="View billing & plan details"
     >
       <Badge color="blue">
-        {PLAN_LABELS[billing.plan_tier] ?? billing.plan_tier}
+        {PLAN_LABELS[billing.plan_tier] ?? billing.plan_tier} plan
       </Badge>
     </Link>
   );
@@ -81,7 +81,9 @@ export function Topbar() {
           <BookOpen size={14} className="mr-1.5" />
           Docs
         </a>
-        <Badge color="indigo">{role}</Badge>
+        <Badge color="indigo">
+          {role.charAt(0).toUpperCase() + role.slice(1)}
+        </Badge>
         {canSeeBilling && <PlanBadge />}
         <Button variant="ghost" size="sm" onClick={logout}>
           <LogOut size={14} className="mr-1.5" />
