@@ -96,6 +96,25 @@ function statusBadge(status: CredentialStatus) {
   return <Badge color="gray">Revoked</Badge>;
 }
 
+function RoutingSummary({ cred }: { cred: CredentialPublicView }) {
+  const roles = Object.keys(cred.role_models).length;
+  const fallbacks = cred.failover_chain.length;
+  const ceilings = Object.keys(cred.role_cost_limits).length;
+  if (!roles && !fallbacks && !ceilings) return null;
+  const parts: string[] = [];
+  if (roles) parts.push(`${roles} role${roles > 1 ? "s" : ""}`);
+  if (fallbacks) parts.push(`${fallbacks} fallback${fallbacks > 1 ? "s" : ""}`);
+  if (ceilings) parts.push(`${ceilings} ceiling${ceilings > 1 ? "s" : ""}`);
+  return (
+    <span
+      className="cursor-help"
+      title="Advanced routing — see the panel below for details."
+    >
+      routing: {parts.join(" · ")}
+    </span>
+  );
+}
+
 function providerLabel(id: CredentialProvider) {
   return PROVIDERS.find((p) => p.id === id)?.label ?? id;
 }
@@ -315,6 +334,7 @@ function CredentialRow({
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-secondary">
           <span className="font-mono">{cred.key_fingerprint}</span>
           {cred.default_model && <span>model: {cred.default_model}</span>}
+          <RoutingSummary cred={cred} />
           {cred.last_validated_at && (
             <span>
               validated {new Date(cred.last_validated_at).toLocaleString()}

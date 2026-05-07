@@ -32,7 +32,6 @@ interface Props {
  */
 export function BusinessFeaturesPanel(props: Props) {
   const { cred, currentTier } = props;
-  const [open, setOpen] = useState(false);
 
   const eligible = hasFeature(currentTier, "byok.role_models");
   const hasConfig =
@@ -40,6 +39,11 @@ export function BusinessFeaturesPanel(props: Props) {
     cred.failover_chain.length > 0 ||
     Object.keys(cred.role_cost_limits).length > 0;
   const inGracePeriod = !eligible && hasConfig;
+
+  // Auto-open when the credential already has routing config so the user
+  // doesn't have to click to discover what's there. Empty credential =
+  // collapsed, keeping the page tidy.
+  const [open, setOpen] = useState(hasConfig);
 
   return (
     <div className="border-t border-border/40 pt-2">
