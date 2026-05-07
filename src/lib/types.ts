@@ -324,7 +324,13 @@ export interface BillingCheckoutResponse {
 export interface AuditEvent {
   timestamp: string;
   action: string;
+  // Display string. Server prefers actor_user_id over actor_key_id and
+  // strips the legacy ``cloud:`` prefix from pre-031 rows.
   actor: string | null;
+  // Typed columns from migration 031 — exactly one is populated for
+  // post-migration rows (or both null on anonymous events).
+  actor_user_id: string | null;
+  actor_key_id: string | null;
   resource_type: string | null;
   resource_id: string | null;
   ip: string | null;
