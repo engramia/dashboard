@@ -133,43 +133,67 @@ function UpgradeNotice({
 // Per-role models editor
 // ---------------------------------------------------------------------------
 
+/**
+ * A draft row is either a NEW entry (`originalRole: null`) or an EDIT of an
+ * existing persisted entry (`originalRole: "<role>"`). Tracking the original
+ * key lets us correctly handle rename — on save we drop the original from
+ * the persisted map before merging the draft in, so renaming `architect` to
+ * `coder` doesn't leave both behind.
+ */
+type RoleModelDraft = {
+  originalRole: string | null;
+  role: string;
+  model: string;
+};
+
 function RoleModelsEditor({
   cred,
   disabled,
   onError,
 }: Props & { disabled: boolean }) {
-  const [draft, setDraft] = useState<Array<[string, string]>>(
-    Object.entries(cred.role_models),
-  );
+  const [draft, setDraft] = useState<RoleModelDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const update = useUpdateRoleModels();
 
-  const dirty =
-    JSON.stringify(Object.fromEntries(draft)) !==
-    JSON.stringify(cred.role_models);
+  // Persisted entries hidden while their edit is in progress in the form.
+  const editingOriginals = new Set(
+    draft.map((d) => d.originalRole).filter((r): r is string => r !== null),
+  );
+  const visibleActive = Object.entries(cred.role_models).filter(
+    ([role]) => !editingOriginals.has(role),
+  );
 
-  const addRow = () => setDraft([...draft, ["", ""]]);
+  const draftHasContent = draft.some(
+    (d) => d.role.trim() && d.model.trim(),
+  );
+
+  const addRow = () =>
+    setDraft([...draft, { originalRole: null, role: "", model: "" }]);
   const removeRow = (i: number) =>
     setDraft(draft.filter((_, idx) => idx !== i));
-  const updateRow = (i: number, field: 0 | 1, val: string) =>
+  const updateRow = (i: number, field: "role" | "model", val: string) =>
     setDraft(
-      draft.map((row, idx) =>
-        idx === i ? ((field === 0 ? [val, row[1]] : [row[0], val]) as [string, string]) : row,
-      ),
+      draft.map((row, idx) => (idx === i ? { ...row, [field]: val } : row)),
     );
 
   const handleSave = async () => {
     onError("");
     setSubmitting(true);
     try {
-      const role_models: Record<string, string> = {};
-      for (const [role, model] of draft) {
-        const r = role.trim().toLowerCase();
-        const m = model.trim();
-        if (!r || !m) continue;
-        role_models[r] = m;
+      const next: Record<string, string> = { ...cred.role_models };
+      // Drop any originals being edited — the new role/model pair below
+      // takes precedence (handles rename + value change in one shot).
+      for (const d of draft) {
+        if (d.originalRole) delete next[d.originalRole];
       }
-      await update.mutateAsync({ cred, req: { role_models } });
+      for (const d of draft) {
+        const r = d.role.trim().toLowerCase();
+        const m = d.model.trim();
+        if (!r || !m) continue;
+        next[r] = m;
+      }
+      await update.mutateAsync({ cred, req: { role_models: next } });
+      setDraft([]);
     } catch (e) {
       onError(formatError(e));
     } finally {
@@ -177,7 +201,7 @@ function RoleModelsEditor({
     }
   };
 
-  const handleClear = async () => {
+  const handleClearAll = async () => {
     onError("");
     setSubmitting(true);
     try {
@@ -190,6 +214,29 @@ function RoleModelsEditor({
     }
   };
 
+  const handleEdit = (role: string) => {
+    setDraft([
+      ...draft,
+      { originalRole: role, role, model: cred.role_models[role] },
+    ]);
+  };
+
+  const handleClearRow = async (role: string) => {
+    onError("");
+    setSubmitting(true);
+    try {
+      const next = { ...cred.role_models };
+      delete next[role];
+      await update.mutateAsync({ cred, req: { role_models: next } });
+    } catch (e) {
+      onError(formatError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const totalRows = draft.length + Object.keys(cred.role_models).length;
+
   return (
     <section>
       <div className="flex items-center justify-between">
@@ -199,7 +246,7 @@ function RoleModelsEditor({
         <Button
           variant="ghost"
           onClick={addRow}
-          disabled={disabled || draft.length >= 16}
+          disabled={disabled || totalRows >= 16}
         >
           <Plus size={12} />
           Add role
@@ -207,61 +254,113 @@ function RoleModelsEditor({
       </div>
       <p className="mt-1 text-xs text-text-secondary">
         Map an Engramia role to a different model on this credential.
-        Empty rows are ignored.
       </p>
 
-      {draft.length === 0 ? (
-        <div className="mt-2 text-xs italic text-text-secondary">
-          No overrides — every call uses the credential&apos;s default_model.
-        </div>
-      ) : (
-        <div className="mt-2 space-y-1">
-          {draft.map(([role, model], i) => (
-            <div key={i} className="flex items-center gap-2">
-              <RoleSelect
-                value={role}
-                onChange={(v) => updateRow(i, 0, v)}
-                disabled={disabled}
-              />
-              <Input
-                value={model}
-                placeholder="model id (e.g. gpt-4.1-mini)"
-                onChange={(e) => updateRow(i, 1, e.target.value)}
-                disabled={disabled}
-                className="flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => removeRow(i)}
-                disabled={disabled}
-                className="rounded p-1 text-text-secondary hover:bg-surface-hover"
-                aria-label="Remove role"
+      {/* Pending changes — empty until the user clicks Add role or Edit. */}
+      {draft.length > 0 && (
+        <>
+          <div className="mt-2 space-y-1">
+            {draft.map((row, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <RoleSelect
+                  value={row.role}
+                  onChange={(v) => updateRow(i, "role", v)}
+                  disabled={disabled}
+                />
+                <Input
+                  value={row.model}
+                  placeholder="model id (e.g. gpt-4.1-mini)"
+                  onChange={(e) => updateRow(i, "model", e.target.value)}
+                  disabled={disabled}
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  disabled={disabled}
+                  className="rounded p-1 text-text-secondary hover:bg-surface-hover"
+                  aria-label="Discard row"
+                  title="Discard this pending row"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={disabled || submitting || !draftHasContent}
+            >
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setDraft([])}
+              disabled={submitting}
+            >
+              Discard changes
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Currently active — read-only list with per-row edit/clear. */}
+      {visibleActive.length > 0 && (
+        <div className="mt-3 rounded border border-border/40 bg-bg-elevated/40 p-2">
+          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-text-secondary">
+            Currently active
+          </div>
+          <ul className="space-y-1">
+            {visibleActive.map(([role, model]) => (
+              <li
+                key={role}
+                className="flex items-center justify-between gap-2 text-xs"
               >
-                <X size={14} />
-              </button>
+                <span className="font-mono">
+                  {role} → {model}
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(role)}
+                    disabled={disabled}
+                    className="text-accent hover:underline disabled:opacity-40 disabled:no-underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleClearRow(role)}
+                    disabled={submitting}
+                    className="text-danger hover:underline disabled:opacity-40 disabled:no-underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {Object.keys(cred.role_models).length > 0 && (
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                onClick={handleClearAll}
+                disabled={submitting}
+                title="Clearing is allowed even on lower tiers"
+              >
+                Clear all
+              </Button>
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      <div className="mt-2 flex gap-2">
-        <Button
-          onClick={handleSave}
-          disabled={disabled || submitting || !dirty}
-        >
-          Save
-        </Button>
-        {Object.keys(cred.role_models).length > 0 && (
-          <Button
-            variant="ghost"
-            onClick={handleClear}
-            disabled={submitting}
-            title="Clearing is allowed even on lower tiers"
-          >
-            Clear all
-          </Button>
-        )}
-      </div>
+      {draft.length === 0 && visibleActive.length === 0 && (
+        <div className="mt-2 text-xs italic text-text-secondary">
+          No overrides — every call uses the credential&apos;s default_model.
+        </div>
+      )}
     </section>
   );
 }
@@ -444,51 +543,65 @@ function FailoverChainEditor({
 // Per-role cost ceiling editor (#2b)
 // ---------------------------------------------------------------------------
 
+type CostLimitDraft = {
+  originalRole: string | null;
+  role: string;
+  // The user types dollars (UX-friendly); we send cents (API contract).
+  dollars: string;
+};
+
 function RoleCostLimitsEditor({
   cred,
   disabled,
   onError,
 }: Props & { disabled: boolean }) {
-  // The user types dollars (UX-friendly); we send cents (API contract).
-  // Round to 2dp on display to avoid float-drift confusion.
-  const initial = Object.entries(cred.role_cost_limits).map(
-    ([role, cents]) => [role, (cents / 100).toFixed(2)] as [string, string],
-  );
-  const [draft, setDraft] = useState<Array<[string, string]>>(initial);
+  const [draft, setDraft] = useState<CostLimitDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const update = useUpdateRoleCostLimits();
 
-  // Compute dirty by reconstructing the cents map from the draft and
-  // comparing against the persisted shape. String compare on entries
-  // would treat "5.00" vs "5" as different even when functionally equal.
-  const draftAsCents = (): Record<string, number> => {
+  const editingOriginals = new Set(
+    draft.map((d) => d.originalRole).filter((r): r is string => r !== null),
+  );
+  const visibleActive = Object.entries(cred.role_cost_limits).filter(
+    ([role]) => !editingOriginals.has(role),
+  );
+
+  const draftAsCents = (rows: CostLimitDraft[]): Record<string, number> => {
     const out: Record<string, number> = {};
-    for (const [role, dollars] of draft) {
-      const r = role.trim().toLowerCase();
-      const cents = Math.round(parseFloat(dollars || "0") * 100);
+    for (const d of rows) {
+      const r = d.role.trim().toLowerCase();
+      const cents = Math.round(parseFloat(d.dollars || "0") * 100);
       if (!r || !Number.isFinite(cents) || cents <= 0) continue;
       out[r] = cents;
     }
     return out;
   };
-  const dirty =
-    JSON.stringify(draftAsCents()) !== JSON.stringify(cred.role_cost_limits);
+  const draftHasContent = Object.keys(draftAsCents(draft)).length > 0;
 
-  const addRow = () => setDraft([...draft, ["", ""]]);
+  const addRow = () =>
+    setDraft([...draft, { originalRole: null, role: "", dollars: "" }]);
   const removeRow = (i: number) =>
     setDraft(draft.filter((_, idx) => idx !== i));
-  const updateRow = (i: number, field: 0 | 1, val: string) =>
+  const updateRow = (i: number, field: "role" | "dollars", val: string) =>
     setDraft(
-      draft.map((row, idx) =>
-        idx === i ? ((field === 0 ? [val, row[1]] : [row[0], val]) as [string, string]) : row,
-      ),
+      draft.map((row, idx) => (idx === i ? { ...row, [field]: val } : row)),
     );
 
   const handleSave = async () => {
     onError("");
     setSubmitting(true);
     try {
-      await update.mutateAsync({ cred, req: { role_cost_limits: draftAsCents() } });
+      const next: Record<string, number> = { ...cred.role_cost_limits };
+      for (const d of draft) {
+        if (d.originalRole) delete next[d.originalRole];
+      }
+      const newEntries = draftAsCents(draft);
+      Object.assign(next, newEntries);
+      await update.mutateAsync({
+        cred,
+        req: { role_cost_limits: next },
+      });
+      setDraft([]);
     } catch (e) {
       onError(formatError(e));
     } finally {
@@ -496,7 +609,7 @@ function RoleCostLimitsEditor({
     }
   };
 
-  const handleClear = async () => {
+  const handleClearAll = async () => {
     onError("");
     setSubmitting(true);
     try {
@@ -509,6 +622,35 @@ function RoleCostLimitsEditor({
     }
   };
 
+  const handleEdit = (role: string) => {
+    const cents = cred.role_cost_limits[role];
+    setDraft([
+      ...draft,
+      {
+        originalRole: role,
+        role,
+        dollars: (cents / 100).toFixed(2),
+      },
+    ]);
+  };
+
+  const handleClearRow = async (role: string) => {
+    onError("");
+    setSubmitting(true);
+    try {
+      const next = { ...cred.role_cost_limits };
+      delete next[role];
+      await update.mutateAsync({ cred, req: { role_cost_limits: next } });
+    } catch (e) {
+      onError(formatError(e));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const totalRows =
+    draft.length + Object.keys(cred.role_cost_limits).length;
+
   return (
     <section>
       <div className="flex items-center justify-between">
@@ -518,7 +660,7 @@ function RoleCostLimitsEditor({
         <Button
           variant="ghost"
           onClick={addRow}
-          disabled={disabled || draft.length >= 16}
+          disabled={disabled || totalRows >= 16}
         >
           <Plus size={12} />
           Add ceiling
@@ -530,20 +672,14 @@ function RoleCostLimitsEditor({
         No 429 — service continuity. Only applies to roles configured above.
       </p>
 
-      {draft.length === 0 ? (
-        <div className="mt-2 text-xs italic text-text-secondary">
-          No ceilings configured. Role overrides bill against your provider
-          without a cap.
-        </div>
-      ) : (
-        <div className="mt-2 space-y-1">
-          {draft.map(([role, dollars], i) => {
-            const persistedCents = cred.role_cost_limits[role.toLowerCase()];
-            return (
+      {draft.length > 0 && (
+        <>
+          <div className="mt-2 space-y-1">
+            {draft.map((row, i) => (
               <div key={i} className="flex items-center gap-2">
                 <RoleSelect
-                  value={role}
-                  onChange={(v) => updateRow(i, 0, v)}
+                  value={row.role}
+                  onChange={(v) => updateRow(i, "role", v)}
                   disabled={disabled}
                 />
                 <div className="flex flex-1 items-center gap-1">
@@ -552,50 +688,100 @@ function RoleCostLimitsEditor({
                     type="number"
                     min="0.01"
                     step="0.01"
-                    value={dollars}
+                    value={row.dollars}
                     placeholder="50.00"
-                    onChange={(e) => updateRow(i, 1, e.target.value)}
+                    onChange={(e) => updateRow(i, "dollars", e.target.value)}
                     disabled={disabled}
                     className="flex-1"
                   />
                   <span className="text-xs text-text-secondary">/mo</span>
                 </div>
-                {persistedCents !== undefined && (
-                  <span
-                    className="text-xs text-text-secondary"
-                    title={`Persisted: ${persistedCents} cents`}
-                  >
-                    ({formatCents(persistedCents)})
-                  </span>
-                )}
                 <button
                   type="button"
                   onClick={() => removeRow(i)}
                   disabled={disabled}
                   className="rounded p-1 text-text-secondary hover:bg-surface-hover"
-                  aria-label="Remove ceiling"
+                  aria-label="Discard ceiling row"
+                  title="Discard this pending row"
                 >
                   <X size={14} />
                 </button>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Button
+              onClick={handleSave}
+              disabled={disabled || submitting || !draftHasContent}
+            >
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setDraft([])}
+              disabled={submitting}
+            >
+              Discard changes
+            </Button>
+          </div>
+        </>
+      )}
+
+      {visibleActive.length > 0 && (
+        <div className="mt-3 rounded border border-border/40 bg-bg-elevated/40 p-2">
+          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-text-secondary">
+            Currently active
+          </div>
+          <ul className="space-y-1">
+            {visibleActive.map(([role, cents]) => (
+              <li
+                key={role}
+                className="flex items-center justify-between gap-2 text-xs"
+              >
+                <span className="font-mono">
+                  {role} → {formatCents(cents)} /mo
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(role)}
+                    disabled={disabled}
+                    className="text-accent hover:underline disabled:opacity-40 disabled:no-underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleClearRow(role)}
+                    disabled={submitting}
+                    className="text-danger hover:underline disabled:opacity-40 disabled:no-underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {Object.keys(cred.role_cost_limits).length > 0 && (
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                onClick={handleClearAll}
+                disabled={submitting}
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
-      <div className="mt-2 flex gap-2">
-        <Button
-          onClick={handleSave}
-          disabled={disabled || submitting || !dirty}
-        >
-          Save
-        </Button>
-        {Object.keys(cred.role_cost_limits).length > 0 && (
-          <Button variant="ghost" onClick={handleClear} disabled={submitting}>
-            Clear all
-          </Button>
-        )}
-      </div>
+      {draft.length === 0 && visibleActive.length === 0 && (
+        <div className="mt-2 text-xs italic text-text-secondary">
+          No ceilings configured. Role overrides bill against your provider
+          without a cap.
+        </div>
+      )}
     </section>
   );
 }
