@@ -263,17 +263,23 @@ function RoleSelect({
   onChange: (v: string) => void;
   disabled: boolean;
 }) {
+  // Inline style on each <option> mirrors the parent <select> background +
+  // text colour so Chromium's native dropdown panel (which falls back to
+  // OS-default light grey on dark themes when CSS custom properties don't
+  // cascade through to the popup) stays readable. Other browsers honour
+  // less of this but the parent select still renders correctly.
+  const optionStyle = { backgroundColor: "#252832", color: "#e2e8f0" };
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className="rounded border border-border bg-surface-secondary px-2 py-1 text-xs text-text-primary"
+      className="rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
       aria-label="Role"
     >
-      <option value="">— role —</option>
+      <option value="" style={optionStyle}>— role —</option>
       {KNOWN_ROLES.map((r) => (
-        <option key={r} value={r} title={ROLE_DESCRIPTIONS[r]}>
+        <option key={r} value={r} title={ROLE_DESCRIPTIONS[r]} style={optionStyle}>
           {r}
         </option>
       ))}
@@ -369,12 +375,20 @@ function FailoverChainEditor({
                 value={entry}
                 onChange={(e) => updateEntry(i, e.target.value)}
                 disabled={disabled}
-                className="flex-1 rounded border border-border bg-surface-secondary px-2 py-1 text-xs text-text-primary"
+                className="flex-1 rounded border border-border bg-bg-elevated px-2 py-1 text-xs text-text-primary focus:border-accent focus:outline-none"
                 aria-label={`Fallback ${i + 1}`}
               >
-                <option value="">— select credential —</option>
+                {/* See RoleSelect: inline style keeps Chromium's native
+                    dropdown panel readable on dark themes. */}
+                <option value="" style={{ backgroundColor: "#252832", color: "#e2e8f0" }}>
+                  — select credential —
+                </option>
                 {candidates.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option
+                    key={c.id}
+                    value={c.id}
+                    style={{ backgroundColor: "#252832", color: "#e2e8f0" }}
+                  >
                     {c.provider} ({c.key_fingerprint})
                   </option>
                 ))}
