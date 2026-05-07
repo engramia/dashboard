@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/Input";
 import { useRecall, useDeletePattern, useClassifyPattern } from "@/lib/hooks/usePatterns";
 import { useRole } from "@/lib/session";
 import { hasPermission } from "@/lib/permissions";
+import { REUSE_TIER_DESCRIPTIONS } from "@/lib/types";
 import { ArrowLeft } from "lucide-react";
 
 export default function PatternDetailPage() {
@@ -99,7 +100,13 @@ export default function PatternDetailPage() {
                 </div>
                 <div className="flex gap-2">
                   <span className="text-text-secondary">Tier:</span>
-                  <Badge color="indigo">{match.reuse_tier}</Badge>
+                  <Badge
+                    color="indigo"
+                    title={REUSE_TIER_DESCRIPTIONS[match.reuse_tier]}
+                    className="cursor-help"
+                  >
+                    {match.reuse_tier}
+                  </Badge>
                 </div>
               </div>
             </Card>

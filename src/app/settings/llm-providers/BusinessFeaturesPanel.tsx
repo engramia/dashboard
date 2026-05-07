@@ -51,7 +51,15 @@ export function BusinessFeaturesPanel(props: Props) {
         <span className="flex items-center gap-2">
           {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           Advanced routing
-          {!eligible && <Badge color="gray">Business+</Badge>}
+          {!eligible && (
+            <Badge
+              color="gray"
+              title="Available on Business plan or higher. Includes per-role model routing, failover chains, and per-role cost ceilings."
+              className="cursor-help"
+            >
+              Business+
+            </Badge>
+          )}
           {inGracePeriod && (
             <Badge color="amber">Grace period — upgrade to keep editing</Badge>
           )}
