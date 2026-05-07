@@ -42,3 +42,14 @@ export function hasPermission(role: string, perm: string): boolean {
   if (!perms) return false;
   return perms.has("*") || perms.has(perm);
 }
+
+export const ROLE_DESCRIPTIONS: Record<string, string> = {
+  owner:
+    "Full access to everything, including organization settings and billing.",
+  admin:
+    "Manage API keys, governance, audit log, billing, and BYOK credentials. Includes all editor permissions.",
+  editor:
+    "Learn, evaluate, compose and evolve patterns; register skills; delete own patterns. Includes all reader permissions.",
+  reader:
+    "Read-only: recall, metrics, analytics, feedback, jobs, skills search.",
+};

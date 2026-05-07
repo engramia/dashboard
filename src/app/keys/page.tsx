@@ -9,6 +9,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Table, Thead, Tbody, Th, Tr, Td } from "@/components/ui/Table";
 import { useKeys, useCreateKey, useRevokeKey, useRotateKey } from "@/lib/hooks/useKeys";
+import { ROLE_DESCRIPTIONS } from "@/lib/permissions";
 import { RotateCw, Trash2, Copy, Plus } from "lucide-react";
 
 function timeAgo(iso: string | null): string {
@@ -66,6 +67,7 @@ export default function KeysPage() {
     reader: "gray",
   };
 
+
   return (
     <Shell>
       <div className="space-y-6">
@@ -94,7 +96,13 @@ export default function KeysPage() {
                   <Td className="font-medium">{k.name}</Td>
                   <Td className="font-mono text-xs">{k.key_prefix}</Td>
                   <Td>
-                    <Badge color={roleColor[k.role] ?? "gray"}>{k.role}</Badge>
+                    <Badge
+                      color={roleColor[k.role] ?? "gray"}
+                      title={ROLE_DESCRIPTIONS[k.role]}
+                      className="cursor-help"
+                    >
+                      {k.role}
+                    </Badge>
                   </Td>
                   <Td className="text-xs text-text-secondary">
                     {timeAgo(k.last_used_at)}
