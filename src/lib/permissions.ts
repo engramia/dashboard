@@ -43,7 +43,14 @@ export function hasPermission(role: string, perm: string): boolean {
   return perms.has("*") || perms.has(perm);
 }
 
-export const ROLE_DESCRIPTIONS: Record<string, string> = {
+// RBAC role descriptions — owner / admin / editor / reader. Distinct from
+// the BYOK semantic LLM-call roles in `@/lib/known-roles` (default / eval /
+// architect / coder / evolve / recall) — both used to be exported as
+// `ROLE_DESCRIPTIONS` from their respective modules, which caused
+// import-site confusion. The `RBAC_` prefix scopes this constant to the
+// permission system; the BYOK equivalent stays as `ROLE_DESCRIPTIONS`
+// because that's the dominant meaning inside the LLM-providers UI.
+export const RBAC_ROLE_DESCRIPTIONS: Record<string, string> = {
   owner:
     "Full access to everything, including organization settings and billing.",
   admin:

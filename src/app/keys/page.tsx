@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Table, Thead, Tbody, Th, Tr, Td } from "@/components/ui/Table";
 import { useKeys, useCreateKey, useRevokeKey, useRotateKey } from "@/lib/hooks/useKeys";
-import { ROLE_DESCRIPTIONS } from "@/lib/permissions";
+import { RBAC_ROLE_DESCRIPTIONS } from "@/lib/permissions";
 import { RotateCw, Trash2, Copy, Plus } from "lucide-react";
 
 function timeAgo(iso: string | null): string {
@@ -98,7 +98,7 @@ export default function KeysPage() {
                   <Td>
                     <Badge
                       color={roleColor[k.role] ?? "gray"}
-                      title={ROLE_DESCRIPTIONS[k.role]}
+                      title={RBAC_ROLE_DESCRIPTIONS[k.role]}
                       className="cursor-help"
                     >
                       {k.role}

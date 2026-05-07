@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRole, useLogout } from "@/lib/session";
 import { useHealth } from "@/lib/hooks/useHealth";
 import { useBillingStatus } from "@/lib/hooks/useBilling";
-import { hasPermission, ROLE_DESCRIPTIONS } from "@/lib/permissions";
+import { hasPermission, RBAC_ROLE_DESCRIPTIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BookOpen, LogOut } from "lucide-react";
@@ -94,7 +94,7 @@ export function Topbar() {
         </a>
         <Badge
           color="indigo"
-          title={ROLE_DESCRIPTIONS[role]}
+          title={RBAC_ROLE_DESCRIPTIONS[role]}
           className="cursor-help"
         >
           {role.charAt(0).toUpperCase() + role.slice(1)}
