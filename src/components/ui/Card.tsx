@@ -34,7 +34,7 @@ export function CardTitle({
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={twMerge(clsx("text-sm font-medium text-text-secondary", className))}
+      className={twMerge(clsx("text-base font-semibold text-text-primary", className))}
       {...props}
     />
   );
