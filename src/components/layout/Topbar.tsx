@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useRole, useLogout } from "@/lib/session";
 import { useHealth } from "@/lib/hooks/useHealth";
 import { useBillingStatus } from "@/lib/hooks/useBilling";
-import { hasPermission } from "@/lib/permissions";
+import { hasPermission, ROLE_DESCRIPTIONS } from "@/lib/permissions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { BookOpen, LogOut } from "lucide-react";
+
+const HEALTH_TOOLTIP: Record<string, string> = {
+  green: "Core API healthy — all components responding.",
+  amber: "Core API degraded — some checks are slow or partially failing.",
+  red: "Core API error — one or more components are down.",
+  gray: "Core API status unknown — health probe not yet completed.",
+};
 
 const PLAN_LABELS: Record<string, string> = {
   sandbox: "Sandbox",
@@ -55,7 +62,8 @@ export function Topbar() {
         {health && (
           <>
             <span
-              className={`inline-block h-2 w-2 rounded-full ${
+              title={HEALTH_TOOLTIP[healthColor]}
+              className={`inline-block h-2 w-2 cursor-help rounded-full ${
                 healthColor === "green"
                   ? "bg-success"
                   : healthColor === "amber"
@@ -65,7 +73,10 @@ export function Topbar() {
                       : "bg-text-secondary"
               }`}
             />
-            <span className="text-xs text-text-secondary">
+            <span
+              className="cursor-help text-xs text-text-secondary"
+              title="Core API version (server build)."
+            >
               {health.version ?? ""}
             </span>
           </>
@@ -81,7 +92,11 @@ export function Topbar() {
           <BookOpen size={14} className="mr-1.5" />
           Docs
         </a>
-        <Badge color="indigo">
+        <Badge
+          color="indigo"
+          title={ROLE_DESCRIPTIONS[role]}
+          className="cursor-help"
+        >
           {role.charAt(0).toUpperCase() + role.slice(1)}
         </Badge>
         {canSeeBilling && <PlanBadge />}

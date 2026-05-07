@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Table, Thead, Tbody, Th, Tr, Td } from "@/components/ui/Table";
 import { useRecall } from "@/lib/hooks/usePatterns";
+import { REUSE_TIER_DESCRIPTIONS } from "@/lib/types";
 import { Search } from "lucide-react";
 
 export default function PatternsPage() {
@@ -79,7 +80,11 @@ export default function PatternsPage() {
                     <Td>{m.pattern.success_score.toFixed(1)}</Td>
                     <Td>{m.pattern.reuse_count}x</Td>
                     <Td>
-                      <Badge color={tierColor[m.reuse_tier] ?? "gray"}>
+                      <Badge
+                        color={tierColor[m.reuse_tier] ?? "gray"}
+                        title={REUSE_TIER_DESCRIPTIONS[m.reuse_tier]}
+                        className="cursor-help"
+                      >
                         {m.reuse_tier}
                       </Badge>
                     </Td>

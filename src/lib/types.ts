@@ -71,6 +71,15 @@ export interface MatchOut {
   pattern: PatternOut;
 }
 
+export const REUSE_TIER_DESCRIPTIONS: Record<string, string> = {
+  duplicate:
+    "Near-identical match (similarity ≥ 92%) — pattern can be reused as-is.",
+  adapt:
+    "Similar match (similarity ≥ 70%) — pattern should be adapted to the new task.",
+  fresh:
+    "No close match (similarity < 70%) — treat as a new task; learn from scratch.",
+};
+
 export interface RecallRequest {
   task: string;
   limit?: number;
